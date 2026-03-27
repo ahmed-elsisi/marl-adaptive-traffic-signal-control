@@ -167,6 +167,7 @@ def build_mappo_config(config: dict) -> PPOConfig:
             num_envs_per_worker=mappo_cfg.get('num_envs_per_worker', 1),
             rollout_fragment_length=mappo_cfg.get('rollout_fragment_length', 200),
             batch_mode=mappo_cfg.get('batch_mode', 'complete_episodes'),
+            sample_timeout_s=mappo_cfg.get('sample_timeout_s', 120),
         )
         .resources(
             num_gpus=mappo_cfg.get('num_gpus', 1),

@@ -1,84 +1,640 @@
-# CLAUDE.md
+# Emergent Social Behaviour & Dilemmas in Multi-Agent Reinforcement Learning
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+**Project Type:** Graduation Research Project (AY 2025/2026)  
+**Student:** Ahmed Wael Elsisi (214647)  
+**Supervisor:** Dr. Randa Mohamed  
+**Institution:** British University in Egypt - Electrical Engineering (Computer Engineering Programme)
 
-## Project Overview
+---
 
-Research project on emergent social behavior and dilemmas in Multi-Agent Reinforcement Learning (MARL), applied to adaptive traffic signal control. Four cooperative MAPPO agents control traffic lights at junctions J1–J4 in a 2×2 grid SUMO simulation.
+## Project Mission
 
-All active code lives in `RP-5/`.
+Investigate when and why cooperation emerges versus exploitation in multi-agent reinforcement learning (MARL) systems through systematic comparison across the coordination-dilemma spectrum.
 
-## Running Scripts
+### Core Research Questions
 
-```bash
-# Validate environment setup (SUMO, CUDA, dependencies)
-python RP-5/tests/setup_validation.py
+1. **Reward Structure Impact:** How do individual vs. shared rewards affect emergent cooperation patterns?
+2. **Coordination Scaling:** Does coordination value increase as networks grow from small (2×2) to large (5×5) grids?
+3. **Mechanism Differences:** How do cooperation mechanisms differ between pure coordination problems (traffic) and social dilemmas (resource exploitation)?
+4. **Efficiency-Equity Trade-offs:** Can high system performance coexist with fair outcome distribution?
 
-# Train MAPPO agents
-python RP-5/train_mappo.py
+---
 
-# Evaluate a trained checkpoint
-python RP-5/evaluate.py
+## Research Methodology
 
-# Compare MAPPO vs fixed-cycles vs max-pressure baselines
-python RP-5/compare_baseline.py
+### Two-Semester Comparative Study
 
-# Run individual tests
-python RP-5/tests/test_env.py
-python RP-5/tests/test_sumo_connection.py
-python RP-5/tests/test_pressure.py
+**Semester 1 (COMPLETED):** Coordination Baseline
+- Environment: Traffic signal control (inherently cooperative)
+- Network: 2×2 grid, 4 signalized intersections
+- Algorithm: MAPPO (Multi-Agent Proximal Policy Optimization)
+- Goal: Establish baseline where cooperation naturally benefits all agents
+
+**Semester 2 (PLANNED):** Social Dilemma Testing
+- Phase 1: Scale traffic to 5×5 grid (25 intersections), compare the currently implemented MAPPO against baseline MAPPO (in research paper "The Surprising Effectiveness of PPO in Cooperative Multi-Agent Game") then the compare currently implemented MAPPO vs IPPO 
+- Phase 2: Implement social dilemma environment (Harvest/custom/predator-prey)
+- Phase 3: Cross-environment analysis of cooperation mechanisms
+
+### The Spectrum Being Studied
+```
+PURE COORDINATION ←――――――――――――――――→ SOCIAL DILEMMA
+(Traffic Control)                    (Resource Sharing)
+
+Cooperation benefits     Individual gain from
+everyone                exploitation tempts
+No exploitation          Collective harm if all
+temptation              exploit
 ```
 
-No pytest integration — tests are standalone scripts that print validation output.
+---
 
-## Dependencies
+## Technical Stack
 
-Install via: `pip install -r RP-5/requirements.txt`
+### Core Technologies
 
-Key packages: `ray[rllib]==2.35.0`, `torch>=2.0.0`, `gymnasium>=0.28.1`, `sumo-rl>=1.4.3`, `traci>=1.19.0`. SUMO must be installed separately and available on PATH.
+- **Simulator:** SUMO (Simulation of Urban MObility) v1.x — Windows binaries (`sumo.exe` / `sumo-gui.exe`)
+- **Interface:** TraCI (standard only — libsumo fails to start on this setup, do NOT attempt to use it)
+- **RL Framework:** Ray RLlib 2.35.0 (distributed training via Ray Tune)
+- **Algorithm:** MAPPO (Multi-Agent PPO) with CTDE paradigm
+- **Deep Learning:** PyTorch (via RLlib, framework="torch")
+- **Visualization:** TensorBoard for training metrics
+- **Hardware:** 1× RTX 3060Ti GPU + AMD Ryzen 5 3600 (3 CPU workers)
+- **Platform:** Windows 11 (use forward slashes in paths, Unix shell via Git Bash)
 
-## Architecture
+### Key Dependencies
+```python
+# Core Dependencies
+ray[rllib]==2.35.0
+torch>=2.0.0
+gymnasium>=0.28.1
+numpy>=1.24.0
+pandas>=2.0.0
 
-### Environment (`marl_env/`)
+# SUMO Integration
+sumo-rl>=1.4.3
+traci>=1.19.0
 
-- **`sumo_env.py`** — Ray RLlib `MultiAgentEnv` wrapping SUMO via TraCI. Manages 4 agents (J1–J4), 4-action discrete phase space, yellow-time transitions, and min-green enforcement.
-- **`obs_builder.py`** — `MAPPOObservationBuilderV2` produces 70-dim observations per agent:
-  - **28-dim local:** queue lengths (12), current phase + elapsed time (3), movement pressures + derivatives (12), min-green flag (1)
-  - **42-dim neighbor (21 × 2):** shared queue metrics, direction info, pressures, outgoing metrics (neighbor→agent), ingoing metrics (agent→neighbor)
-  - Outgoing/ingoing metrics are the key research innovation enabling green-wave and backpressure learning.
-- **`reward_function.py`** — 5-component weighted reward: queue penalty (−0.25), waiting time penalty (−1.0, primary), throughput bonus (+0.1), pressure penalty (−0.4), neighbor pressure (−0.5 with spatial discounting 0.9). Clipped to [−3.0, 1.0].
+# Monitoring and Logging
+tensorboard>=2.13.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
 
-### Model (`models/mappo_model.py`)
+# Utilities
+PyYAML>=6.0
+tqdm>=4.65.0
+scipy>=1.11.0
 
-`MAPPOModelCentralizedCritic` (extends `TorchModelV2`):
-- **Actor (decentralized):** 70 → 128 → 64 → 4 actions per agent
-- **Critic (centralized):** 280 (70 × 4 agents) → 256 → 128 → 64 → 1 value
+# Optional GPU Support (for RTX 3060 Ti)
+# Ensure CUDA 11.8+ or 12.1+ is installed
+# torch will use CUDA automatically if available
+```
 
-Uses orthogonal initialization, value normalization via running mean/std.
+---
 
-### Training (`train_mappo.py`)
+## Implementation Architecture
 
-Uses Ray Tune + RLlib PPO with parameter sharing (`shared_policy`). Key settled hyperparameters: `train_batch_size=32768`, `sgd_minibatch_size=4096`, `num_sgd_iter=10` (NOT 15 — causes instability), `entropy_coeff=0.02`, `gamma=0.99`, `lambda=0.95`. Runs 3 rollout workers. Checkpoints saved to `RP-5/results/`.
+### MARL Setup (Semester 1)
 
-### Baselines
+**Environment:**
+- 2×2 grid network (4 agents = 4 intersections: J1, J2, J3, J4)
+- Roads: 150m between intersections, 100m entry/exit
+- Lane configuration: 3-lane roads with strict directional assignments
+  - Lane 0: Right turns
+  - Lane 1: Straight
+  - Lane 2: Left turns
+- Episode: 3,600 simulation seconds, 5-second action frequency = 720 decisions/episode
+- Traffic pattern: Light (0-600s) → Rush hour (600-2400s) → Light (2400-3600s)
 
-- **`fixed-cycles.py`** — Fixed-time controller (30s NS / 30s EW, 3s yellow)
-- **`max-pressure.py`** — Adaptive heuristic selecting phase that maximizes upstream−downstream queue pressure
-- **`compare_baseline.py`** — Runs all three controllers with same seed (42) and generates comparative metrics/plots
+**Observation Space (70 dimensions per agent):**
 
-### Configuration
+*Local features (28 dim):*
+- Queue lengths: 4 edges × 3 movements = 12 detectors, normalized (12 dim)
+- Current signal direction: NS or EW, one-hot encoded (2 dim)
+- Elapsed phase time: Normalized by 60s (1 dim)
+- Movement pressures: Incoming - outgoing, per movement (6 dim: NS right/straight/left, EW right/straight/left)
+- Pressure derivatives: Rate of change per movement (6 dim)
+- Min-green constraint flag: 1 if ≥10s elapsed, else 0 (1 dim)
 
-All parameters in `RP-5/configs/mappo_config.yaml`: SUMO network paths, agent/junction definitions, detector-to-edge mappings, reward weights, network architecture, and training hyperparameters.
+*Neighbor features (42 dim = 21 per neighbor × 2 neighbors):*
+Per neighbor (21 dim):
+- Shared queues from neighbor (3 dim)
+- Neighbor signal direction: one-hot (2 dim)
+- Combined movement pressures: right/straight/left (3 dim)
+- Total pressure scalar (1 dim)
+- OUTGOING metrics — traffic from neighbor TO agent (6 dim): queue × 3 + avg wait × 3
+- INGOING metrics — traffic from agent TO neighbor (6 dim): queue × 3 + available space × 3
 
-### Outputs
+Network topology (for neighbor lookup):
+- J1 neighbors: J2, J3
+- J2 neighbors: J1, J4
+- J3 neighbors: J1, J4
+- J4 neighbors: J2, J3
 
-- `RP-5/results/` — Ray Tune checkpoints
-- `RP-5/metrics/` — Evaluation CSVs and PNG plots
-- `RP-5/sumo_network/` — SUMO simulation files (`marl-proj.*`)
+**Action Space (Discrete, 4 phases):**
+```
+A = {
+  a₀ (Action 0) → Phase 0: NS through + right turns
+  a₁ (Action 1) → Phase 6: NS left turns
+  a₂ (Action 2) → Phase 2: EW through + right turns
+  a₃ (Action 3) → Phase 4: EW left turns
+}
+Right turns are permissive for all phases.
+enforce_min_green: false (agents learn optimal timing autonomously)
+```
 
-## Key Implementation Details
+**Reward Function (Multi-component):**
+```
+r_t = -1.0·W_t - 0.25·Q_t + 0.1·T_t - 0.4·P_t - 0.5·N_t
+Clipped to range: [-3.0, 1.0]
 
-- TraCI port management in `sumo_env.py` uses dynamic port allocation to support multi-worker Ray training without port conflicts.
-- The `evaluate.py` script collects vehicle arrivals **during** the `delta_time` simulation loop (not after) — this is a critical correctness fix.
-- Neighbor connectivity and detector-to-edge mappings are defined in `mappo_config.yaml` under `network_topology`; changing the SUMO network requires updating these mappings.
-- Traffic demand: medium (`-p 2.0`) for training, heavy (`-p 1.0`) for evaluation stress testing.
+Where:
+W_t = Normalized cumulative waiting time (primary objective)
+Q_t = Normalized queue length (halted vehicles / max)
+T_t = Normalized throughput (departed vehicles / expected)
+P_t = Normalized positive pressure (incoming - outgoing, clipped at 0)
+N_t = Normalized neighbor pressure (spatially discounted, γ=0.9)
+
+Normalization constants:
+  queue_max: 100 vehicles/lane
+  phase_time_max: 60 seconds
+  pressure_max: 100 vehicles
+  waiting_time_max: 60 seconds
+  spatial_discount: 0.9
+```
+
+**Neural Network Architecture:**
+
+*Actor Network (Decentralized, class: MAPPOModelCentralizedCritic):*
+- Input: 70 dim (local observations only)
+- Hidden 1: 128 units, Tanh (orthogonal init)
+- Hidden 2: 64 units, Tanh (orthogonal init)
+- Output: 4 units (action logits, gain=0.01)
+
+*Critic Network (Centralized):*
+- Input: 280 dim (4 agents × 70 dim, global state)
+- Hidden 1: 256 units, ReLU (orthogonal init)
+- Hidden 2: 128 units, ReLU (orthogonal init)
+- Hidden 3: 64 units, ReLU (orthogonal init)
+- Output: 1 unit, Linear (value estimate)
+- Value normalization enabled (running mean/std, momentum=0.99)
+
+*All 4 agents share a single policy ("shared_policy") — parameter sharing.*
+
+**MAPPO Hyperparameters (from configs/mappo_config.yaml):**
+```python
+{
+    "lr": 3e-4,                    # Learning rate
+    "gamma": 0.99,                 # Discount factor
+    "lambda_": 0.95,               # GAE lambda
+    "sgd_minibatch_size": 4096,
+    "train_batch_size": 32768,
+    "num_sgd_iter": 10,            # Epochs per update
+    "clip_param": 0.2,             # PPO clip
+    "vf_clip_param": 10.0,
+    "grad_clip": 0.5,
+    "entropy_coeff": 0.02,
+    "vf_loss_coeff": 1.0,
+    "num_rollout_workers": 3,
+    "rollout_fragment_length": 200,
+    "batch_mode": "complete_episodes",
+    "framework": "torch",
+    "num_gpus": 1,
+    "num_gpus_per_worker": 0,
+    "vf_share_layers": false,      # Separate actor and critic networks
+    "use_orthogonal_init": true,
+    "use_value_normalization": true
+}
+```
+
+### Training Configuration
+
+- **Semester 1 Actual Run:** 101 iterations (stopped manually after convergence)
+- **Config Target:** 1000 iterations (stopping criteria: `episode_reward_mean: -5`)
+- **Duration:** ~28 hours (101 iterations)
+- **Parallel Workers:** 3 rollout workers + 1 training process (GPU)
+- **Evaluation:** Every 50 iterations (10 episodes, deterministic)
+- **Checkpointing:** Every 50 iterations, keep 5 most recent
+- **Results saved to:** `RP-5/results/mappo_traffic_control/`
+- **TensorBoard logs:** `RP-5/logs/tensorboard/`
+- **Seed:** 42 (NumPy, PyTorch, SUMO)
+
+---
+
+## Semester 1 Results (Achieved)
+
+### Performance Metrics
+
+- **Improvement:** 98.5% from baseline
+- **Initial Reward:** -1,767.98 (iteration 1)
+- **Final Reward:** -26.28 ± 0.61 (iterations 82-101, std dev across last 10)
+- **Explained Variance:** 0.864 (critic prediction accuracy)
+- **KL Divergence:** 0.00543 average (stable policy updates)
+- **Entropy:** 0.728 final (retained stochasticity, max = ln(4) ≈ 1.39)
+
+### Learning Phases
+
+1. Initial learning (iter 1-10): -681.02 avg (high variance exploration)
+2. Rapid improvement (iter 10-50): -71.09 avg (discovering coordination)
+3. Fine-tuning (iter 50-82): -31.32 avg (policy refinement)
+4. Convergence (iter 82-101): -27.08 ± 0.61 (stable performance)
+
+### Emergent Behaviors Observed
+
+- ✓ Offset signal phase timing (prevent downstream gridlock)
+- ✓ Network-wide coordination without explicit communication
+- ✓ Spatial awareness via neighbor pressure term
+- ✓ Robust to traffic pattern variations
+
+### Baseline Comparisons
+
+Outperformed both heuristic baselines:
+- Fixed-Time Controller: Pre-programmed cycles
+- Max-Pressure Controller: Minimize incoming-outgoing imbalance
+
+---
+
+## Semester 2 Plan (In Progress)
+
+### Phase 1: Traffic Scaling & IPPO Comparison (Weeks 1-3)
+
+**Task 1.1:** Compare against baseline MAPPO
+- Retrieve hyperparameters and neural network configuration from paper "The Surprising Effectiveness of PPO in Cooperative Multi-Agent Games"
+- Apply the hyperparameters and configuration from the mentioned paper and compare against our currently implemented MAPPO
+- Output comparison metrics and analyze the performance
+
+**Task 1.2:** Scale environment 2×2 → 5×5 (25 intersections)
+- Maintain lane config, detector setup
+- Adjust traffic demand proportionally
+- Verify observation space: 70 dim/agent, 1,750 dim centralized critic
+
+**Task 1.3:** Implement Independent PPO (IPPO)
+- Individual rewards: Each agent optimizes only local metrics
+- Same architecture, hyperparameters as MAPPO
+- Fair comparison: Isolated variable = reward structure
+
+**Task 1.4:** Comparative evaluation
+- Metrics: Network waiting time, throughput, queue lengths
+- Analysis: Coordination value = (MAPPO performance - IPPO performance)
+
+### Phase 2: Social Dilemma Environment (Weeks 4-9)
+
+**Environment Candidates:**
+1. **Harvest (PettingZoo):** Apple collection with sustainability dilemma
+2. **Custom Traffic Dilemma:** Asymmetric tolling scenario
+3. **Predator-Prey:** Cooperative hunting with exploitation opportunities
+
+**Selection Criteria:**
+- Measurable cooperation metrics
+- Clear individual-vs-collective tension
+- RLlib compatibility
+
+**Experiments:**
+- Train IPPO and MAPPO in selected dilemma
+- Log cooperation-specific metrics (resource sustainability, collective welfare)
+- Population-based training (if time permits)
+
+### Phase 3: Cross-Environment Analysis (Weeks 10-15)
+
+**Synthesis:**
+- Compare learned behaviors: Traffic (coordination) vs Dilemma (conflict)
+- Efficiency-equity analysis (Gini coefficient)
+- Statistical significance testing
+- Video demonstrations of emergent behaviors
+
+---
+
+## Code Organization
+
+### Directory Structure
+```
+Applied/
+├── CLAUDE.md                          # Project instructions (this file)
+├── RP-5/                              # Semester 1 implementation (2×2 grid)
+│   ├── train_mappo.py                 # Main training entry point
+│   ├── evaluate.py                    # MAPPO evaluation (arrival-tracking fix)
+│   ├── compare_baseline.py            # 3-way comparison: MAPPO vs Fixed vs MaxP
+│   ├── fixed-cycles.py                # Fixed-time baseline controller
+│   ├── max-pressure.py                # Max-pressure baseline controller
+│   ├── validate_edges.py              # SUMO edge connectivity validator
+│   ├── configs/
+│   │   └── mappo_config.yaml          # All hyperparameters and environment config
+│   ├── marl_env/
+│   │   ├── sumo_env.py                # SUMOTrafficEnv (RLlib MultiAgentEnv)
+│   │   ├── obs_builder.py             # MAPPOObservationBuilderV2 (70-dim)
+│   │   └── reward_function.py         # MAPPORewardFunction (5-component)
+│   ├── models/
+│   │   └── mappo_model.py             # MAPPOModelCentralizedCritic (custom RLlib model)
+│   ├── sumo_network/
+│   │   ├── marl-proj.net.xml          # 2×2 road network topology
+│   │   ├── marl-proj.rou.xml          # Vehicle routes and demand
+│   │   ├── marl-proj.sumocfg          # SUMO simulation config
+│   │   ├── marl-proj.ttl.xml          # Traffic light logic (phase definitions)
+│   │   ├── marl-proj.add.xml          # Detectors (E2 lanearea sensors)
+│   │   └── marl-proj.nod.xml          # Node definitions
+│   ├── results/
+│   │   └── mappo_traffic_control/     # Ray Tune output (checkpoints + metrics)
+│   ├── metrics/                       # Evaluation outputs (CSV + PNG plots)
+│   ├── logs/
+│   │   └── tensorboard/               # TensorBoard training logs
+│   └── tests/                         # Validation and setup scripts
+└── Emergent Social Behaviour... Interim.pdf  # Interim report (Semester 1)
+```
+
+### Key Files to Reference
+
+- **Network file:** `RP-5/sumo_network/marl-proj.net.xml` — 2×2 road topology
+- **Route file:** `RP-5/sumo_network/marl-proj.rou.xml` — vehicle demand
+- **Config file:** `RP-5/sumo_network/marl-proj.sumocfg` — ties network + routes + params
+- **TL logic:** `RP-5/sumo_network/marl-proj.ttl.xml` — phase index → signal string mapping
+- **Detectors:** `RP-5/sumo_network/marl-proj.add.xml` — E2 lanearea detector definitions
+- **Config:** `RP-5/configs/mappo_config.yaml` — single source of truth for all hyperparameters
+- **Training:** `RP-5/train_mappo.py` — run with `python train_mappo.py --config configs/mappo_config.yaml`
+- **Evaluation:** `RP-5/evaluate.py` — run with `python evaluate.py --checkpoint <path>`
+- **Checkpoints:** `RP-5/results/mappo_traffic_control/PPO_sumo_traffic_<run_id>/`
+
+---
+
+## Common Development Tasks
+
+### Training a New Model
+```bash
+# Train from scratch
+python train_mappo.py --config configs/mappo_config.yaml --iterations 1000
+
+# Resume from checkpoint
+python train_mappo.py --config configs/mappo_config.yaml --resume results/mappo_traffic_control/<run_id>/checkpoint_000101
+```
+
+Key workflow:
+1. Edit `configs/mappo_config.yaml` to set hyperparameters
+2. Run `train_mappo.py` — Ray initializes workers, each spawns a SUMO instance
+3. Each worker gets a unique TraCI port (PID-based, 10000–65000 range)
+4. TensorBoard: `tensorboard --logdir logs/tensorboard/`
+5. Checkpoints saved every 50 iterations to `results/mappo_traffic_control/`
+
+### Evaluation & Analysis
+```bash
+# Evaluate MAPPO vs baselines
+python compare_baseline.py --checkpoint results/mappo_traffic_control/<run_id> --episodes 1 --seed 42
+
+# Evaluate MAPPO only
+python evaluate.py --checkpoint results/mappo_traffic_control/<run_id> --episodes 3 --seed 42
+
+# Run with GUI
+python evaluate.py --checkpoint <path> --gui
+```
+
+Critical implementation note: `evaluate.py` uses `EnvWrapperWithMetrics` to hook into
+SUMO's delta_time loop and capture arrivals every simulation second (not just every 5s
+RL step). This is required to correctly count ~1,200 vehicle completions per episode.
+
+Outputs saved to `metrics/`:
+- `mappo_ep<N>_metrics.csv` — time-series (halts, arrivals, wait, speed)
+- `mappo_ep<N>_halting.png`, `*_arrivals_wait.png`, `*_per_agent.png`
+- `comparison_all_overlay.png`, `comparison_all_summary.png`, `comparison_all_heatmap.png`
+
+### Key Metrics to Track
+
+**Training Metrics:**
+- `episode_reward_mean`: Average reward across agents
+- `policy_loss`: Actor network optimization
+- `vf_loss`: Critic network optimization
+- `kl`: Policy update magnitude (should stay low)
+- `entropy`: Exploration level (should decay gradually)
+- `explained_variance`: Critic prediction accuracy (target >0.8)
+
+**Evaluation Metrics:**
+- Total waiting time (primary optimization goal)
+- Vehicle throughput (completed trips)
+- Queue lengths (halted vehicle counts)
+- Pressure imbalance (incoming - outgoing)
+
+**Cooperation Metrics (S2):**
+- Resource sustainability (for Harvest)
+- Collective welfare indicators
+- Gini coefficient (fairness/equity)
+- Exploitation rates
+
+---
+
+## Research Context & Terminology
+
+### MARL Core Concepts
+
+**Centralized Training with Decentralized Execution (CTDE):**
+- Training: Centralized critic accesses global state (all agents' obs + actions)
+- Execution: Decentralized actors use only local observations
+- Analogy: "Coach sees all during practice, players act independently in game"
+- Resolves non-stationarity while maintaining scalability
+
+**Non-Stationarity Problem:**
+- Each agent sees others as part of environment
+- But those "parts" are learning and changing
+- Violates Markov assumption (stationary transition dynamics)
+- CTDE addresses by conditioning critic on joint state
+
+**Credit Assignment:**
+- With shared rewards, which agent deserves credit?
+- MAPPO's centralized critic helps attribute value
+- Value decomposition methods (QMIX) provide alternative approach
+
+**Independent Learning (IQL, IPPO):**
+- Each agent treats others as environment
+- No coordination mechanism
+- Simple, scalable, but ignores multi-agent structure
+- Serves as baseline for measuring coordination value
+
+### Social Dilemma Concepts
+
+**Prisoner's Dilemma:**
+- Individual rational choice = defect
+- Mutual cooperation yields better outcome
+- But cooperation vulnerable to exploitation
+
+**Tragedy of the Commons:**
+- Shared resource with individual access
+- Each benefits from exploitation, costs distributed
+- Overexploitation destroys resource for all
+
+**Sequential Social Dilemmas (SSD):**
+- Multi-timestep grid world environments
+- Dilemma structure persists over time
+- Agents must balance immediate vs long-term
+- Examples: Harvest (apple gathering), Cleanup
+
+### Algorithm Comparisons
+
+| Algorithm | Training | Execution | Strengths | Weaknesses |
+|-----------|----------|-----------|-----------|------------|
+| **MAPPO** | Centralized critic | Decentralized actor | Strong coordination, stable | Requires global state during training |
+| **IPPO** | Independent | Decentralized | Simple, scalable | No coordination mechanism |
+| **QMIX** | Centralized mixer | Decentralized | Value decomposition | Monotonicity constraint limits flexibility |
+| **MADDPG** | Centralized critic | Decentralized actor | Handles continuous actions | Complex, less stable than PPO |
+
+---
+
+## Anticipated Challenges & Solutions
+
+### Technical Challenges
+
+**Challenge:** 5×5 grid computational cost
+- Solution: Maintain 3 workers, extend training time if needed
+
+**Challenge:** Social dilemma environment selection
+- Solution: Allocated Weeks 3-4 for evaluation, have fallback to traffic-only
+
+**Challenge:** Fair IPPO-MAPPO comparison
+- Solution: Keep identical hyperparameters, isolate reward structure variable
+
+### Experimental Challenges
+
+**Challenge:** Measuring cooperation in dilemmas
+- Solution: Design environment-specific metrics (resource sustainability, collective welfare)
+
+**Challenge:** Ensuring reproducibility
+- Solution: Fixed random seeds, comprehensive logging, checkpoint versioning
+
+### Time Management
+
+**Challenge:** Ambitious S2 scope
+- Solution: Prioritize core experiments (traffic scaling + dilemma baseline), mark population training as optional
+
+---
+
+## Key References
+
+1. **Sutton & Barto (2018):** RL fundamentals, Bellman equations, MDP framework
+2. **Schulman et al. (2017):** PPO algorithm (clipping, stable updates)
+3. **Schulman et al. (2016):** GAE for advantage estimation
+4. **Yu et al. (2021):** MAPPO effectiveness in cooperative games
+5. **Lowe et al. (2017):** MADDPG, CTDE paradigm
+6. **Rashid et al. (2018):** QMIX value decomposition
+7. **Tan (1993):** IQL baseline, independent learning
+8. **Leibo et al. (2017):** Sequential social dilemmas
+9. **Wei et al. (2019):** CoLight, pressure-based methods
+10. **Chu et al. (2020):** Large-scale MARL for traffic
+
+---
+
+## Development Conventions
+
+### Git Workflow
+
+**After every meaningful unit of work, commit and push to GitHub.** This provides a safe revert point at all times — critical for a project with 28-hour training runs where a bad change may only surface much later.
+
+Rules:
+- Commit after each logical change: new file, config addition, bug fix, model edit, new script
+- Write descriptive commit messages that say *what* changed and *why* (not just "update files")
+- Always push immediately after committing — local-only commits offer no protection
+- Never batch unrelated changes into one commit
+- Use `git status` before committing to catch untracked files
+
+```bash
+cd "E:/Research/Emergent Social Behaviour and Dilemmas in MARL/Applied"
+git add <specific files>
+git commit -m "Short description of what and why"
+git push
+```
+
+### Code Style
+- PEP 8 for Python
+- Type hints for function signatures
+- Docstrings for all classes/functions
+- Comprehensive inline comments for MARL-specific logic
+
+### Experimentation
+- One experiment = one config file (configs/mappo_config.yaml is the single source)
+- Unique run names with timestamps (auto-generated by Ray Tune)
+- TensorBoard logs in `RP-5/logs/tensorboard/`
+- Checkpoints in `RP-5/results/mappo_traffic_control/`
+
+### Documentation
+- README for each environment directory
+- Config file comments explaining all hyperparameters
+- Analysis scripts with markdown cells explaining methodology
+
+---
+
+## Success Criteria
+
+### Semester 1 (Achieved ✓)
+- [x] MAPPO implementation trains successfully
+- [x] Convergence demonstrated (reward plateaus)
+- [x] Outperforms baselines (fixed-time, max-pressure)
+- [x] Emergent coordination behaviors observed
+- [x] Interim report submitted
+
+### Semester 2 (Targets)
+- [ ] Compare against baseline MAPPO from "The Surprising Effectiveness of PPO in Cooperative Multi-Agent Games"
+- [ ] 5×5 traffic environment functional
+- [ ] IPPO baseline trained for comparison
+- [ ] Coordination value quantified (MAPPO - IPPO)
+- [ ] Social dilemma environment implemented
+- [ ] Cross-environment comparison complete
+- [ ] Statistical analysis of cooperation mechanisms
+- [ ] Final thesis submitted
+- [ ] Defense presentation delivered
+
+---
+
+## Contact & Resources
+
+**Student:** Ahmed Wael Elsisi (214647)  
+**Supervisor:** Dr. Randa Mohamed  
+**Institution:** British University in Egypt
+
+**Key Resources:**
+- SUMO Documentation: https://sumo.dlr.de/docs/
+- Ray RLlib Docs: https://docs.ray.io/en/latest/rllib/
+- PettingZoo (Multi-Agent Envs): https://pettingzoo.farama.org/
+
+---
+
+## Critical Implementation Details
+
+### SUMO Edge Naming Convention
+- Edge `E1` goes from A→B; edge `-E1` goes from B→A (SUMO negation convention)
+- Outgoing edges = negation of incoming edges (used in reward function)
+- Detector IDs follow pattern: `det_{edge}_{movement}_stop` (e.g., `det_-E6_0_stop`)
+- J1 incoming edges: `-E6`, `E0`, `E16`, `-E1`
+- J2 incoming edges: `E1`, `-E7`, `-E11`, `-E10`
+- J3 incoming edges: `-E17`, `-E16`, `-E18`, `-E15`
+- J4 incoming edges: `E15`, `E11`, `-E8`, `-E9`
+
+### TraCI Port Management
+- Each worker process gets a unique TraCI port: `10000 + (PID % 55000) + random(0,100)`
+- Up to 5 retry attempts with port increment if collision occurs
+- **Always use standard TraCI — libsumo fails to start on this machine and must NOT be used**
+
+### Policy Sharing
+- All 4 agents share a single policy `"shared_policy"` (parameter sharing)
+- This means one set of actor/critic weights is trained across all agents
+- Each agent still uses its own local observation for actor forward pass
+- Centralized critic constructs 280-dim global state = concatenation of all 4 agents' 70-dim obs
+
+### Phase Index Mapping
+The SUMO `.ttl.xml` file defines 8 phases. Only 4 "green" phases are used as actions:
+- Phase 0 (`GGrgrrGGrgrr`): NS through + right
+- Phase 2 (`GrrGgrGrrGGr`): EW through + right
+- Phase 4 (`GrrGrGGrrGrG`): EW left turns
+- Phase 6 (`GrGGrrGrGGrr`): NS left turns
+Phases 1, 3, 5, 7 are yellow transitions (handled automatically by SUMO).
+
+### Min-Green Enforcement
+`enforce_min_green: false` in config (default). Agents freely choose any phase each step.
+If set to `true`, phase changes are blocked until 10s have elapsed (hard constraint).
+
+---
+
+## Notes for AI Assistants
+
+When helping with this project:
+
+1. **Understand the dual-environment methodology** - Traffic is baseline, dilemmas are the research contribution
+2. **Respect the comparative framework** - IPPO vs MAPPO isolates coordination value
+3. **Recognize CTDE is central** - Centralized training, decentralized execution
+4. **Traffic is cooperative** - Network effects align incentives
+5. **Dilemmas create conflict** - Individual gain from exploitation
+6. **S2 is exploratory** - Environment selection still pending
+7. **Time constraints matter** - 15-week S2 timeline is tight
+8. **Non-specialist audience** - Presentations must be accessible

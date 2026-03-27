@@ -113,6 +113,7 @@ def build_mappo_config(config: dict) -> PPOConfig:
             'critic_hiddens': config['model_config']['custom_model_config'].get('critic_hiddens', [256, 128]),
             'use_lstm': config['model_config']['custom_model_config'].get('use_lstm', False),
             'lstm_cell_size': config['model_config']['custom_model_config'].get('lstm_cell_size', 64),
+            'critic_activation': config['model_config']['custom_model_config'].get('critic_activation', 'relu'),
             'use_orthogonal_init': config['model_config']['custom_model_config'].get('use_orthogonal_init', True),
             'orthogonal_gain': config['model_config']['custom_model_config'].get('orthogonal_gain', 0.01),
             'use_value_normalization': config['model_config']['custom_model_config'].get('use_value_normalization', True),

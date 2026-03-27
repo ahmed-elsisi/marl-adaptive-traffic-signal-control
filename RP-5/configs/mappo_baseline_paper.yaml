@@ -1,0 +1,188 @@
+# MAPPO Baseline Configuration — Yu et al. (2021)
+# "The Surprising Effectiveness of PPO in Cooperative Multi-Agent Games"
+#
+# PURPOSE: Reproduce the paper's MAPPO hyperparameters for direct comparison
+#          against our enhanced MAPPO (mappo_config.yaml).
+#
+# WHAT CHANGES vs mappo_config.yaml (algorithm only — environment is identical):
+#   lr:             3e-4  → 5e-4   (paper Table 1)
+#   num_sgd_iter:   10    → 15     (paper Table 1)
+#   entropy_coeff:  0.02  → 0.01   (paper Table 1)
+#   grad_clip:      0.5   → 10.0   (paper: max_grad_norm = 10)
+#   actor_hiddens:  [128, 64] → [64, 64]  (paper: 2×64 MLP)
+#   critic_hiddens: [256,128,64] → [64, 64]  (paper: 2×64 MLP)
+#   critic_activation: relu → tanh  (paper uses tanh for both networks)
+#
+# WHAT IS IDENTICAL (ensures fair comparison — only algorithm changes):
+#   Environment, SUMO network, reward function, observation space, seed,
+#   batch sizes, clip_param, vf_clip_param, vf_loss_coeff, value normalization,
+#   orthogonal init, number of workers, training iterations.
+
+# ── Environment Configuration (IDENTICAL to mappo_config.yaml) ───────────────
+env_config:
+  network_file: "sumo_network/marl-proj.net.xml"
+  route_file: "sumo_network/marl-proj.rou.xml"
+  use_gui: false
+  num_seconds: 3600
+  delta_time: 5
+  yellow_time: 3
+  min_green: 10
+  max_green: 50
+  sumo_seed: 42
+  sumo_warnings: false
+  enforce_min_green: false
+
+# ── Agent Configuration (IDENTICAL) ──────────────────────────────────────────
+agents:
+  - "J1"
+  - "J2"
+  - "J3"
+  - "J4"
+
+# ── Network Topology (IDENTICAL) ─────────────────────────────────────────────
+network_topology:
+  J1: ["J2", "J3"]
+  J2: ["J1", "J4"]
+  J3: ["J1", "J4"]
+  J4: ["J2", "J3"]
+
+# ── Detector Configuration (IDENTICAL) ───────────────────────────────────────
+detectors:
+  J1:
+    incoming_edges: ["-E6", "E0", "E16", "-E1"]
+    movements: [0, 1, 2]
+  J2:
+    incoming_edges: ["E1", "-E7", "-E11", "-E10"]
+    movements: [0, 1, 2]
+  J3:
+    incoming_edges: ["-E17", "-E16", "-E18", "-E15"]
+    movements: [0, 1, 2]
+  J4:
+    incoming_edges: ["E15", "E11", "-E8", "-E9"]
+    movements: [0, 1, 2]
+
+# ── Normalization Configuration (IDENTICAL) ───────────────────────────────────
+normalization:
+  queue_max: 100
+  phase_time_max: 60
+  pressure_max: 100
+  waiting_time_max: 60
+  spatial_discount: 0.9
+
+# ── Reward Configuration (IDENTICAL) ─────────────────────────────────────────
+reward_config:
+  queue_weight: -0.25
+  waiting_time_weight: -1.0
+  throughput_weight: 0.1
+  pressure_weight: -0.4
+  neighbor_pressure_weight: -0.5
+  spatial_discount: 0.9
+  clip_min: -3.0
+  clip_max: 1.0
+
+# ── MAPPO Algorithm Configuration — PAPER VALUES ──────────────────────────────
+mappo_config:
+  # PPO-specific
+  lr: 5.0e-4        # PAPER: 5e-4 (our MAPPO uses 3e-4)
+  gamma: 0.99
+  lambda_: 0.95
+
+  # PAPER: 15 epochs per update
+  num_sgd_iter: 15  # PAPER: 15 (our MAPPO uses 10)
+  sgd_minibatch_size: 4096
+  train_batch_size: 32768
+
+  # Clipping and regularization
+  clip_param: 0.2
+  vf_clip_param: 10.0
+  grad_clip: 10.0   # PAPER: max_grad_norm=10 (our MAPPO uses 0.5)
+  entropy_coeff: 0.01  # PAPER: 0.01 (our MAPPO uses 0.02)
+  vf_loss_coeff: 1.0
+
+  # Model configuration
+  vf_share_layers: false
+  use_critic: true
+  use_gae: true
+
+  # Framework
+  framework: "torch"
+
+  # Multi-agent
+  multiagent:
+    policies_to_train: ["shared_policy"]
+    policy_mapping_fn: "lambda agent_id, episode, worker, **kwargs: 'shared_policy'"
+
+  # Rollout settings (IDENTICAL)
+  num_rollout_workers: 3
+  num_envs_per_worker: 1
+  rollout_fragment_length: 200
+  batch_mode: "complete_episodes"
+
+  # GPU configuration (IDENTICAL)
+  num_gpus: 1
+  num_gpus_per_worker: 0
+
+  # Evaluation
+  evaluation_interval: 50
+  evaluation_duration: 10
+  evaluation_duration_unit: "episodes"
+  evaluation_config:
+    explore: false
+    env_config:
+      use_gui: false
+
+# ── Neural Network Architecture — PAPER VALUES ────────────────────────────────
+model_config:
+  custom_model: "mappo_centralized"
+  custom_model_config:
+    num_agents: 4
+
+    # PAPER: Actor = 2×64, tanh activation
+    actor_hiddens: [64, 64]       # PAPER (our MAPPO uses [128, 64])
+    actor_activation: "tanh"
+
+    # PAPER: Critic = 2×64, tanh activation (same size as actor)
+    critic_hiddens: [64, 64]      # PAPER (our MAPPO uses [256, 128, 64])
+    critic_activation: "tanh"     # PAPER (our MAPPO uses relu)
+
+    # Initialization (IDENTICAL)
+    use_orthogonal_init: true
+    orthogonal_gain: 0.01
+
+    # Value normalization (IDENTICAL — paper uses this)
+    use_value_normalization: true
+
+    # LSTM disabled (IDENTICAL)
+    use_lstm: false
+    lstm_cell_size: 64
+    max_seq_len: 20
+
+# ── Training Configuration ────────────────────────────────────────────────────
+training:
+  num_iterations: 1000
+  checkpoint_freq: 50
+  checkpoint_at_end: true
+  keep_checkpoints_num: 5
+
+  stop:
+    training_iteration: 1000
+    episode_reward_mean: -5
+
+  log_level: "INFO"
+  log_to_file: true
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+logging:
+  tensorboard_dir: "logs/tensorboard"
+  custom_metrics:
+    - "avg_queue"
+    - "max_queue"
+    - "avg_waiting_time"
+    - "throughput"
+    - "total_pressure"
+    - "network_efficiency"
+
+# ── Reproducibility (IDENTICAL) ───────────────────────────────────────────────
+seed: 42
+torch_seed: 42
+numpy_seed: 42

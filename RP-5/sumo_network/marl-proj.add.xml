@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 
+CORRECTED Detector Positions
+- Negative edges: Use pos = (edge_length - detector_length) 
+- Positive edges: Use pos = 0 with friendlyPos
+- All detectors: 100m length, touching junction
+-->
+
+<additional xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/additional_file.xsd">
+    
+    <!-- ================================================================ -->
+    <!-- Junction J1 -->
+    <!-- ================================================================ -->
+    
+    <!-- Edge -E6 (1150m) - CORRECTED: pos = 1150 - 100 = 150 -->
+    <laneAreaDetector id="det_-E6_0_stop" lane="-E6_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E6_1_stop" lane="-E6_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E6_2_stop" lane="-E6_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <laneAreaDetector id="det_E6_0_stop" lane="E6_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E6_1_stop" lane="E6_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E6_2_stop" lane="E6_2" pos="0" length="100.00"  file="NUL"/>
+
+    <!-- Edge E0 (1150m) - CORRECTED: pos = 1150 - 100 = 150 -->
+    <laneAreaDetector id="det_E0_0_stop" lane="E0_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E0_1_stop" lane="E0_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E0_2_stop" lane="E0_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <laneAreaDetector id="det_-E0_0_stop" lane="-E0_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E0_1_stop" lane="-E0_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E0_2_stop" lane="-E0_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <!-- Edge E16 (272.8m) - OK: positive edge -->
+    <laneAreaDetector id="det_E16_0_stop" lane="E16_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E16_1_stop" lane="E16_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E16_2_stop" lane="E16_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <!-- Edge -E1 (1150m) - OK: negative but working correctly -->
+    <laneAreaDetector id="det_-E1_0_stop" lane="-E1_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E1_1_stop" lane="-E1_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E1_2_stop" lane="-E1_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <!-- ================================================================ -->
+    <!-- Junction J2 -->
+    <!-- ================================================================ -->
+    
+    <!-- Edge E1 (1150m) - OK: positive edge -->
+    <laneAreaDetector id="det_E1_0_stop" lane="E1_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E1_1_stop" lane="E1_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E1_2_stop" lane="E1_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <!-- Edge -E7 (1150m) - CORRECTED: pos = 1150 - 100 = 150 -->
+    <laneAreaDetector id="det_-E7_0_stop" lane="-E7_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E7_1_stop" lane="-E7_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E7_2_stop" lane="-E7_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <laneAreaDetector id="det_E7_0_stop" lane="E7_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E7_1_stop" lane="E7_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E7_2_stop" lane="E7_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <!-- Edge -E11 (1150m) - OK: negative but working -->
+    <laneAreaDetector id="det_-E11_0_stop" lane="-E11_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E11_1_stop" lane="-E11_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E11_2_stop" lane="-E11_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <!-- Edge -E10 (1150m) - CORRECTED: pos = 1150 - 100 = 150 -->
+    <laneAreaDetector id="det_-E10_0_stop" lane="-E10_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E10_1_stop" lane="-E10_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E10_2_stop" lane="-E10_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <laneAreaDetector id="det_E10_0_stop" lane="E10_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E10_1_stop" lane="E10_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E10_2_stop" lane="E10_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <!-- ================================================================ -->
+    <!-- Junction J3 -->
+    <!-- ================================================================ -->
+    
+    <!-- Edge -E17 (1100m) - CORRECTED: pos = 1100 - 100 = 100 -->
+    <laneAreaDetector id="det_-E17_0_stop" lane="-E17_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E17_1_stop" lane="-E17_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E17_2_stop" lane="-E17_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <laneAreaDetector id="det_E17_0_stop" lane="E17_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E17_1_stop" lane="E17_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E17_2_stop" lane="E17_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <!-- Edge -E16 (272.8m) - OK: negative but working -->
+    <laneAreaDetector id="det_-E16_0_stop" lane="-E16_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E16_1_stop" lane="-E16_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E16_2_stop" lane="-E16_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <!-- Edge -E18 (1100m) - CORRECTED: pos = 1100 - 100 = 100 -->
+    <laneAreaDetector id="det_-E18_0_stop" lane="-E18_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E18_1_stop" lane="-E18_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E18_2_stop" lane="-E18_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <laneAreaDetector id="det_E18_0_stop" lane="E18_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E18_1_stop" lane="E18_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E18_2_stop" lane="E18_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <!-- Edge -E15 (272.8m) - OK: negative but working -->
+    <laneAreaDetector id="det_-E15_0_stop" lane="-E15_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E15_1_stop" lane="-E15_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E15_2_stop" lane="-E15_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <!-- ================================================================ -->
+    <!-- Junction J4 -->
+    <!-- ================================================================ -->
+    
+    <!-- Edge E15 (272.8m) - OK: positive edge -->
+    <laneAreaDetector id="det_E15_0_stop" lane="E15_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E15_1_stop" lane="E15_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E15_2_stop" lane="E15_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <!-- Edge E11 (1150m) - OK: positive edge -->
+    <laneAreaDetector id="det_E11_0_stop" lane="E11_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E11_1_stop" lane="E11_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E11_2_stop" lane="E11_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <!-- Edge -E8 (1150m) - CORRECTED: pos = 1150 - 100 = 150 -->
+    <laneAreaDetector id="det_-E8_0_stop" lane="-E8_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E8_1_stop" lane="-E8_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E8_2_stop" lane="-E8_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <laneAreaDetector id="det_E8_0_stop" lane="E8_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E8_1_stop" lane="E8_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E8_2_stop" lane="E8_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <!-- Edge -E9 (1150m) - CORRECTED: pos = 1150 - 100 = 150 -->
+    <laneAreaDetector id="det_-E9_0_stop" lane="-E9_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E9_1_stop" lane="-E9_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_-E9_2_stop" lane="-E9_2" pos="0" length="100.00"  file="NUL"/>
+    
+    <laneAreaDetector id="det_E9_0_stop" lane="E9_0" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E9_1_stop" lane="E9_1" pos="0" length="100.00"  file="NUL"/>
+    <laneAreaDetector id="det_E9_2_stop" lane="E9_2" pos="0" length="100.00"  file="NUL"/>
+    
+</additional>

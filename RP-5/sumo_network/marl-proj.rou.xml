@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2025-11-11 23:48:47 by Eclipse SUMO netedit Version 1.24.0
+-->
+
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+    <!-- VTypes -->
+    <vType id="car" length="5.00" minGap="2.50" maxSpeed="13.90" carFollowModel="IDM" accel="3.0" decel="6.0"/>
+    <!-- Vehicles, persons and containers (sorted by depart) -->
+    <flow id="low_demand_E_W" type="car" begin="0.00" from="-E8" to="E7" end="600.00" period="40.00"/>
+    <flow id="low_demand_N_S" type="car" begin="0.00" from="E0" to="E9" end="600.00" period="30.00"/>
+    <flow id="low_demand_S_N" type="car" begin="0.00" from="-E10" to="-E0" end="600.00" period="40.00"/>
+    <flow id="low_demand_W_E" type="car" begin="0.00" from="-E6" to="E18" end="600.00" period="30.00"/>
+    <flow id="peak_N_S_A" type="car" begin="600.00" from="E0" to="E9" end="2400.00" period="12.00"/>
+    <flow id="peak_N_S_B" type="car" begin="600.00" from="-E17" to="E10" end="2400.00" period="12.00"/>
+    <flow id="peak_N_W" type="car" begin="600.00" from="-E17" to="E7" end="2400.00" period="15.00"/>
+    <flow id="peak_W_E_A" type="car" begin="600.00" from="-E6" to="E18" end="2400.00" period="10.00"/>
+    <flow id="peak_W_E_B" type="car" begin="600.00" from="-E7" to="E8" end="2400.00" period="10.00"/>
+    <flow id="peak_W_S" type="car" begin="600.00" from="-E6" to="E10" end="2400.00" period="15.00"/>
+    <flow id="peak_counter_E_W" type="car" begin="600.00" from="-E18" to="E6" end="2400.00" period="40.00"/>
+    <flow id="peak_counter_S_N" type="car" begin="600.00" from="-E9" to="-E0" end="2400.00" period="40.00"/>
+    <flow id="decline_N_S" type="car" begin="2400.00" from="E0" to="E9" end="3600.00" period="20.00"/>
+    <flow id="decline_W_E" type="car" begin="2400.00" from="-E6" to="E18" end="3600.00" period="20.00"/>
+    <flow id="decline_general" type="car" begin="2400.00" from="-E17" to="E7" end="3600.00" period="25.00"/>
+    <flow id="decline_turn" type="car" begin="2400.00" from="-E6" to="E10" end="3600.00" period="30.00"/>
+</routes>

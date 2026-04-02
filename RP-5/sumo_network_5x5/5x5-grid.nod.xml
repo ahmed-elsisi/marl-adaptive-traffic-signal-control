@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nodes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/nodes_file.xsd">
+
+    <!-- Junction nodes -->
+    <node id="J1" x="300" y="1500" type="traffic_light"/>
+    <node id="J2" x="600" y="1500" type="traffic_light"/>
+    <node id="J3" x="900" y="1500" type="traffic_light"/>
+    <node id="J4" x="1200" y="1500" type="traffic_light"/>
+    <node id="J5" x="1500" y="1500" type="traffic_light"/>
+    <node id="J6" x="300" y="1200" type="traffic_light"/>
+    <node id="J7" x="600" y="1200" type="traffic_light"/>
+    <node id="J8" x="900" y="1200" type="traffic_light"/>
+    <node id="J9" x="1200" y="1200" type="traffic_light"/>
+    <node id="J10" x="1500" y="1200" type="traffic_light"/>
+    <node id="J11" x="300" y="900" type="traffic_light"/>
+    <node id="J12" x="600" y="900" type="traffic_light"/>
+    <node id="J13" x="900" y="900" type="traffic_light"/>
+    <node id="J14" x="1200" y="900" type="traffic_light"/>
+    <node id="J15" x="1500" y="900" type="traffic_light"/>
+    <node id="J16" x="300" y="600" type="traffic_light"/>
+    <node id="J17" x="600" y="600" type="traffic_light"/>
+    <node id="J18" x="900" y="600" type="traffic_light"/>
+    <node id="J19" x="1200" y="600" type="traffic_light"/>
+    <node id="J20" x="1500" y="600" type="traffic_light"/>
+    <node id="J21" x="300" y="300" type="traffic_light"/>
+    <node id="J22" x="600" y="300" type="traffic_light"/>
+    <node id="J23" x="900" y="300" type="traffic_light"/>
+    <node id="J24" x="1200" y="300" type="traffic_light"/>
+    <node id="J25" x="1500" y="300" type="traffic_light"/>
+
+    <!-- Boundary nodes -->
+    <node id="BN_node_0" x="300" y="1700" type="priority"/>
+    <node id="BN_node_1" x="600" y="1700" type="priority"/>
+    <node id="BN_node_2" x="900" y="1700" type="priority"/>
+    <node id="BN_node_3" x="1200" y="1700" type="priority"/>
+    <node id="BN_node_4" x="1500" y="1700" type="priority"/>
+    <node id="BS_node_0" x="300" y="100" type="priority"/>
+    <node id="BS_node_1" x="600" y="100" type="priority"/>
+    <node id="BS_node_2" x="900" y="100" type="priority"/>
+    <node id="BS_node_3" x="1200" y="100" type="priority"/>
+    <node id="BS_node_4" x="1500" y="100" type="priority"/>
+    <node id="BW_node_0" x="100" y="1500" type="priority"/>
+    <node id="BW_node_1" x="100" y="1200" type="priority"/>
+    <node id="BW_node_2" x="100" y="900" type="priority"/>
+    <node id="BW_node_3" x="100" y="600" type="priority"/>
+    <node id="BW_node_4" x="100" y="300" type="priority"/>
+    <node id="BE_node_0" x="1700" y="1500" type="priority"/>
+    <node id="BE_node_1" x="1700" y="1200" type="priority"/>
+    <node id="BE_node_2" x="1700" y="900" type="priority"/>
+    <node id="BE_node_3" x="1700" y="600" type="priority"/>
+    <node id="BE_node_4" x="1700" y="300" type="priority"/>
+
+</nodes>

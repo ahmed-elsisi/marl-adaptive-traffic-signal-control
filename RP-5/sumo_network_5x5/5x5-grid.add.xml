@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<additional xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/additional_file.xsd">
+
+    <!-- J1 -->
+    <laneAreaDetector id="det_BN_0_0_stop" lane="BN_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BN_0_1_stop" lane="BN_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BN_0_2_stop" lane="BN_0_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_0_0_0_stop" lane="-V_0_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_0_0_1_stop" lane="-V_0_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_0_0_2_stop" lane="-V_0_0_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BW_0_0_stop" lane="BW_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BW_0_1_stop" lane="BW_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BW_0_2_stop" lane="BW_0_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_0_0_0_stop" lane="-H_0_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_0_0_1_stop" lane="-H_0_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_0_0_2_stop" lane="-H_0_0_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J2 -->
+    <laneAreaDetector id="det_BN_1_0_stop" lane="BN_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BN_1_1_stop" lane="BN_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BN_1_2_stop" lane="BN_1_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_0_1_0_stop" lane="-V_0_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_0_1_1_stop" lane="-V_0_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_0_1_2_stop" lane="-V_0_1_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_0_0_0_stop" lane="H_0_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_0_0_1_stop" lane="H_0_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_0_0_2_stop" lane="H_0_0_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_0_1_0_stop" lane="-H_0_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_0_1_1_stop" lane="-H_0_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_0_1_2_stop" lane="-H_0_1_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J3 -->
+    <laneAreaDetector id="det_BN_2_0_stop" lane="BN_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BN_2_1_stop" lane="BN_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BN_2_2_stop" lane="BN_2_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_0_2_0_stop" lane="-V_0_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_0_2_1_stop" lane="-V_0_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_0_2_2_stop" lane="-V_0_2_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_0_1_0_stop" lane="H_0_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_0_1_1_stop" lane="H_0_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_0_1_2_stop" lane="H_0_1_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_0_2_0_stop" lane="-H_0_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_0_2_1_stop" lane="-H_0_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_0_2_2_stop" lane="-H_0_2_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J4 -->
+    <laneAreaDetector id="det_BN_3_0_stop" lane="BN_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BN_3_1_stop" lane="BN_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BN_3_2_stop" lane="BN_3_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_0_3_0_stop" lane="-V_0_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_0_3_1_stop" lane="-V_0_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_0_3_2_stop" lane="-V_0_3_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_0_2_0_stop" lane="H_0_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_0_2_1_stop" lane="H_0_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_0_2_2_stop" lane="H_0_2_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_0_3_0_stop" lane="-H_0_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_0_3_1_stop" lane="-H_0_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_0_3_2_stop" lane="-H_0_3_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J5 -->
+    <laneAreaDetector id="det_BN_4_0_stop" lane="BN_4_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BN_4_1_stop" lane="BN_4_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BN_4_2_stop" lane="BN_4_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_0_4_0_stop" lane="-V_0_4_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_0_4_1_stop" lane="-V_0_4_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_0_4_2_stop" lane="-V_0_4_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_0_3_0_stop" lane="H_0_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_0_3_1_stop" lane="H_0_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_0_3_2_stop" lane="H_0_3_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BE_0_0_stop" lane="-BE_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BE_0_1_stop" lane="-BE_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BE_0_2_stop" lane="-BE_0_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J6 -->
+    <laneAreaDetector id="det_V_0_0_0_stop" lane="V_0_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_0_0_1_stop" lane="V_0_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_0_0_2_stop" lane="V_0_0_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_1_0_0_stop" lane="-V_1_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_1_0_1_stop" lane="-V_1_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_1_0_2_stop" lane="-V_1_0_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BW_1_0_stop" lane="BW_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BW_1_1_stop" lane="BW_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BW_1_2_stop" lane="BW_1_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_1_0_0_stop" lane="-H_1_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_1_0_1_stop" lane="-H_1_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_1_0_2_stop" lane="-H_1_0_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J7 -->
+    <laneAreaDetector id="det_V_0_1_0_stop" lane="V_0_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_0_1_1_stop" lane="V_0_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_0_1_2_stop" lane="V_0_1_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_1_1_0_stop" lane="-V_1_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_1_1_1_stop" lane="-V_1_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_1_1_2_stop" lane="-V_1_1_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_1_0_0_stop" lane="H_1_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_1_0_1_stop" lane="H_1_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_1_0_2_stop" lane="H_1_0_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_1_1_0_stop" lane="-H_1_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_1_1_1_stop" lane="-H_1_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_1_1_2_stop" lane="-H_1_1_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J8 -->
+    <laneAreaDetector id="det_V_0_2_0_stop" lane="V_0_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_0_2_1_stop" lane="V_0_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_0_2_2_stop" lane="V_0_2_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_1_2_0_stop" lane="-V_1_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_1_2_1_stop" lane="-V_1_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_1_2_2_stop" lane="-V_1_2_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_1_1_0_stop" lane="H_1_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_1_1_1_stop" lane="H_1_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_1_1_2_stop" lane="H_1_1_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_1_2_0_stop" lane="-H_1_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_1_2_1_stop" lane="-H_1_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_1_2_2_stop" lane="-H_1_2_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J9 -->
+    <laneAreaDetector id="det_V_0_3_0_stop" lane="V_0_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_0_3_1_stop" lane="V_0_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_0_3_2_stop" lane="V_0_3_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_1_3_0_stop" lane="-V_1_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_1_3_1_stop" lane="-V_1_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_1_3_2_stop" lane="-V_1_3_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_1_2_0_stop" lane="H_1_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_1_2_1_stop" lane="H_1_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_1_2_2_stop" lane="H_1_2_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_1_3_0_stop" lane="-H_1_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_1_3_1_stop" lane="-H_1_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_1_3_2_stop" lane="-H_1_3_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J10 -->
+    <laneAreaDetector id="det_V_0_4_0_stop" lane="V_0_4_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_0_4_1_stop" lane="V_0_4_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_0_4_2_stop" lane="V_0_4_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_1_4_0_stop" lane="-V_1_4_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_1_4_1_stop" lane="-V_1_4_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_1_4_2_stop" lane="-V_1_4_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_1_3_0_stop" lane="H_1_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_1_3_1_stop" lane="H_1_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_1_3_2_stop" lane="H_1_3_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BE_1_0_stop" lane="-BE_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BE_1_1_stop" lane="-BE_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BE_1_2_stop" lane="-BE_1_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J11 -->
+    <laneAreaDetector id="det_V_1_0_0_stop" lane="V_1_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_1_0_1_stop" lane="V_1_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_1_0_2_stop" lane="V_1_0_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_2_0_0_stop" lane="-V_2_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_2_0_1_stop" lane="-V_2_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_2_0_2_stop" lane="-V_2_0_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BW_2_0_stop" lane="BW_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BW_2_1_stop" lane="BW_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BW_2_2_stop" lane="BW_2_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_2_0_0_stop" lane="-H_2_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_2_0_1_stop" lane="-H_2_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_2_0_2_stop" lane="-H_2_0_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J12 -->
+    <laneAreaDetector id="det_V_1_1_0_stop" lane="V_1_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_1_1_1_stop" lane="V_1_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_1_1_2_stop" lane="V_1_1_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_2_1_0_stop" lane="-V_2_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_2_1_1_stop" lane="-V_2_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_2_1_2_stop" lane="-V_2_1_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_2_0_0_stop" lane="H_2_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_2_0_1_stop" lane="H_2_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_2_0_2_stop" lane="H_2_0_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_2_1_0_stop" lane="-H_2_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_2_1_1_stop" lane="-H_2_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_2_1_2_stop" lane="-H_2_1_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J13 -->
+    <laneAreaDetector id="det_V_1_2_0_stop" lane="V_1_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_1_2_1_stop" lane="V_1_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_1_2_2_stop" lane="V_1_2_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_2_2_0_stop" lane="-V_2_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_2_2_1_stop" lane="-V_2_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_2_2_2_stop" lane="-V_2_2_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_2_1_0_stop" lane="H_2_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_2_1_1_stop" lane="H_2_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_2_1_2_stop" lane="H_2_1_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_2_2_0_stop" lane="-H_2_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_2_2_1_stop" lane="-H_2_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_2_2_2_stop" lane="-H_2_2_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J14 -->
+    <laneAreaDetector id="det_V_1_3_0_stop" lane="V_1_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_1_3_1_stop" lane="V_1_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_1_3_2_stop" lane="V_1_3_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_2_3_0_stop" lane="-V_2_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_2_3_1_stop" lane="-V_2_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_2_3_2_stop" lane="-V_2_3_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_2_2_0_stop" lane="H_2_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_2_2_1_stop" lane="H_2_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_2_2_2_stop" lane="H_2_2_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_2_3_0_stop" lane="-H_2_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_2_3_1_stop" lane="-H_2_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_2_3_2_stop" lane="-H_2_3_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J15 -->
+    <laneAreaDetector id="det_V_1_4_0_stop" lane="V_1_4_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_1_4_1_stop" lane="V_1_4_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_1_4_2_stop" lane="V_1_4_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_2_4_0_stop" lane="-V_2_4_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_2_4_1_stop" lane="-V_2_4_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_2_4_2_stop" lane="-V_2_4_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_2_3_0_stop" lane="H_2_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_2_3_1_stop" lane="H_2_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_2_3_2_stop" lane="H_2_3_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BE_2_0_stop" lane="-BE_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BE_2_1_stop" lane="-BE_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BE_2_2_stop" lane="-BE_2_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J16 -->
+    <laneAreaDetector id="det_V_2_0_0_stop" lane="V_2_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_2_0_1_stop" lane="V_2_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_2_0_2_stop" lane="V_2_0_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_3_0_0_stop" lane="-V_3_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_3_0_1_stop" lane="-V_3_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_3_0_2_stop" lane="-V_3_0_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BW_3_0_stop" lane="BW_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BW_3_1_stop" lane="BW_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BW_3_2_stop" lane="BW_3_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_3_0_0_stop" lane="-H_3_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_3_0_1_stop" lane="-H_3_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_3_0_2_stop" lane="-H_3_0_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J17 -->
+    <laneAreaDetector id="det_V_2_1_0_stop" lane="V_2_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_2_1_1_stop" lane="V_2_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_2_1_2_stop" lane="V_2_1_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_3_1_0_stop" lane="-V_3_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_3_1_1_stop" lane="-V_3_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_3_1_2_stop" lane="-V_3_1_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_3_0_0_stop" lane="H_3_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_3_0_1_stop" lane="H_3_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_3_0_2_stop" lane="H_3_0_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_3_1_0_stop" lane="-H_3_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_3_1_1_stop" lane="-H_3_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_3_1_2_stop" lane="-H_3_1_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J18 -->
+    <laneAreaDetector id="det_V_2_2_0_stop" lane="V_2_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_2_2_1_stop" lane="V_2_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_2_2_2_stop" lane="V_2_2_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_3_2_0_stop" lane="-V_3_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_3_2_1_stop" lane="-V_3_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_3_2_2_stop" lane="-V_3_2_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_3_1_0_stop" lane="H_3_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_3_1_1_stop" lane="H_3_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_3_1_2_stop" lane="H_3_1_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_3_2_0_stop" lane="-H_3_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_3_2_1_stop" lane="-H_3_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_3_2_2_stop" lane="-H_3_2_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J19 -->
+    <laneAreaDetector id="det_V_2_3_0_stop" lane="V_2_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_2_3_1_stop" lane="V_2_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_2_3_2_stop" lane="V_2_3_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_3_3_0_stop" lane="-V_3_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_3_3_1_stop" lane="-V_3_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_3_3_2_stop" lane="-V_3_3_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_3_2_0_stop" lane="H_3_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_3_2_1_stop" lane="H_3_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_3_2_2_stop" lane="H_3_2_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_3_3_0_stop" lane="-H_3_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_3_3_1_stop" lane="-H_3_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_3_3_2_stop" lane="-H_3_3_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J20 -->
+    <laneAreaDetector id="det_V_2_4_0_stop" lane="V_2_4_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_2_4_1_stop" lane="V_2_4_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_2_4_2_stop" lane="V_2_4_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_3_4_0_stop" lane="-V_3_4_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_3_4_1_stop" lane="-V_3_4_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-V_3_4_2_stop" lane="-V_3_4_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_3_3_0_stop" lane="H_3_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_3_3_1_stop" lane="H_3_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_3_3_2_stop" lane="H_3_3_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BE_3_0_stop" lane="-BE_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BE_3_1_stop" lane="-BE_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BE_3_2_stop" lane="-BE_3_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J21 -->
+    <laneAreaDetector id="det_V_3_0_0_stop" lane="V_3_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_3_0_1_stop" lane="V_3_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_3_0_2_stop" lane="V_3_0_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BS_0_0_stop" lane="-BS_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BS_0_1_stop" lane="-BS_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BS_0_2_stop" lane="-BS_0_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BW_4_0_stop" lane="BW_4_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BW_4_1_stop" lane="BW_4_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_BW_4_2_stop" lane="BW_4_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_4_0_0_stop" lane="-H_4_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_4_0_1_stop" lane="-H_4_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_4_0_2_stop" lane="-H_4_0_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J22 -->
+    <laneAreaDetector id="det_V_3_1_0_stop" lane="V_3_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_3_1_1_stop" lane="V_3_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_3_1_2_stop" lane="V_3_1_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BS_1_0_stop" lane="-BS_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BS_1_1_stop" lane="-BS_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BS_1_2_stop" lane="-BS_1_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_4_0_0_stop" lane="H_4_0_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_4_0_1_stop" lane="H_4_0_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_4_0_2_stop" lane="H_4_0_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_4_1_0_stop" lane="-H_4_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_4_1_1_stop" lane="-H_4_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_4_1_2_stop" lane="-H_4_1_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J23 -->
+    <laneAreaDetector id="det_V_3_2_0_stop" lane="V_3_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_3_2_1_stop" lane="V_3_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_3_2_2_stop" lane="V_3_2_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BS_2_0_stop" lane="-BS_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BS_2_1_stop" lane="-BS_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BS_2_2_stop" lane="-BS_2_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_4_1_0_stop" lane="H_4_1_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_4_1_1_stop" lane="H_4_1_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_4_1_2_stop" lane="H_4_1_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_4_2_0_stop" lane="-H_4_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_4_2_1_stop" lane="-H_4_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_4_2_2_stop" lane="-H_4_2_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J24 -->
+    <laneAreaDetector id="det_V_3_3_0_stop" lane="V_3_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_3_3_1_stop" lane="V_3_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_3_3_2_stop" lane="V_3_3_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BS_3_0_stop" lane="-BS_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BS_3_1_stop" lane="-BS_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BS_3_2_stop" lane="-BS_3_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_4_2_0_stop" lane="H_4_2_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_4_2_1_stop" lane="H_4_2_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_4_2_2_stop" lane="H_4_2_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_4_3_0_stop" lane="-H_4_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_4_3_1_stop" lane="-H_4_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-H_4_3_2_stop" lane="-H_4_3_2" pos="0" length="100.00" file="NUL"/>
+
+    <!-- J25 -->
+    <laneAreaDetector id="det_V_3_4_0_stop" lane="V_3_4_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_3_4_1_stop" lane="V_3_4_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_V_3_4_2_stop" lane="V_3_4_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BS_4_0_stop" lane="-BS_4_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BS_4_1_stop" lane="-BS_4_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BS_4_2_stop" lane="-BS_4_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_4_3_0_stop" lane="H_4_3_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_4_3_1_stop" lane="H_4_3_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_H_4_3_2_stop" lane="H_4_3_2" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BE_4_0_stop" lane="-BE_4_0" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BE_4_1_stop" lane="-BE_4_1" pos="0" length="100.00" file="NUL"/>
+    <laneAreaDetector id="det_-BE_4_2_stop" lane="-BE_4_2" pos="0" length="100.00" file="NUL"/>
+
+</additional>

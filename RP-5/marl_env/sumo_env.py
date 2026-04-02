@@ -99,8 +99,9 @@ class SUMOTrafficEnv(MultiAgentEnv):
         self.obs_builder = MAPPOObservationBuilderV2(
             agent_ids=self.agent_ids,
             network_topology=self.network_topology,
-            detector_config=self.detector_config ,
-            normalization_config=env_config['normalization']
+            detector_config=self.detector_config,
+            normalization_config=env_config['normalization'],
+            env_config=env_config
         )
         
         # Build reward function
@@ -426,7 +427,8 @@ class SUMOTrafficEnv(MultiAgentEnv):
                     pass
         
         # Calculate averages
-        avg_queue = total_queue / (4 * 12) if (4 * 12) > 0 else 0
+        num_detectors = len(self.agent_ids) * 12
+        avg_queue = total_queue / num_detectors if num_detectors > 0 else 0
         avg_waiting = total_waiting / max(total_vehicles, 1)
         avg_speed = total_speed / max(total_vehicles, 1)
         

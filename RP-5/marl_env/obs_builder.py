@@ -58,12 +58,14 @@ class MAPPOObservationBuilderV2:
         agent_ids: List[str],
         network_topology: Dict[str, List[str]],
         detector_config: Dict[str, Dict],
-        normalization_config: Dict[str, float]
+        normalization_config: Dict[str, float],
+        env_config: Dict = None
     ):
         self.agent_ids = agent_ids
         self.topology = network_topology
         self.detector_config = detector_config
         self.norm_config = normalization_config
+        self.env_config = env_config or {}
         
         # Build detector mappings
         self._build_detector_mappings()
@@ -107,62 +109,23 @@ class MAPPOObservationBuilderV2:
     def _build_edge_connectivity(self):
         """
         Build edge connectivity for outgoing/ingoing metrics.
-        
-        CRITICAL: Verify these edges match your SUMO network!
-        Check with: sumo-gui -n sumo_network/marl-proj.net.xml
-        
-        Structure:
+
+        Reads from env_config['edge_connectivity'] when present (required for
+        any network larger than the 2x2 baseline).  Falls back to an empty
+        dict so that 2x2 configs without the key degrade gracefully (pressure
+        accuracy is reduced but the environment still runs).
+
+        Structure expected in config:
         {
             'J1': {
                 'J2': {
-                    'outgoing': [edges from J2 to J1],  # Traffic J2 is sending TO J1
-                    'ingoing': [edges from J1 to J2]    # Traffic J1 is sending TO J2
+                    'outgoing': [edges from J2 to J1],  # traffic J2 sends TO J1
+                    'ingoing':  [edges from J1 to J2]   # traffic J1 sends TO J2
                 }
             }
         }
         """
-        self.edge_connectivity = {
-            'J1': {
-                'J2': {
-                    'outgoing': ['-E1'],  # J2→J1: Traffic coming from J2
-                    'ingoing': ['E1']     # J1→J2: Traffic going to J2
-                },
-                'J3': {
-                    'outgoing': ['E16'],  # J3→J1
-                    'ingoing': ['-E16']     # J1→J3
-                }
-            },
-            'J2': {
-                'J1': {
-                    'outgoing': ['E1'],   # J1→J2
-                    'ingoing': ['-E1']    # J2→J1
-                },
-                'J4': {
-                    'outgoing': ['-E11'],  # J4→J2
-                    'ingoing': ['E11']     # J2→J4
-                }
-            },
-            'J3': {
-                'J1': {
-                    'outgoing': ['-E16'],  # J1→J3
-                    'ingoing': ['E16']   # J3→J1
-                },
-                'J4': {
-                    'outgoing': ['-E15'],  # J4→J3
-                    'ingoing': ['E15']     # J3→J4
-                }
-            },
-            'J4': {
-                'J2': {
-                    'outgoing': ['E11'],  # J2→J4
-                    'ingoing': ['-E11']   # J4→J2
-                },
-                'J3': {
-                    'outgoing': ['E15'],  # J3→J4
-                    'ingoing': ['-E15']   # J4→J3
-                }
-            }
-        }
+        self.edge_connectivity = self.env_config.get('edge_connectivity', {})
     
     def get_observation(self, agent_id: str, traci_conn) -> np.ndarray:
         """Build enhanced observation vector (70 dims)."""
@@ -348,27 +311,20 @@ class MAPPOObservationBuilderV2:
             return 0.0
     
     def _get_outgoing_edges(self, agent_id: str, direction: str) -> List[str]:
-        """Get outgoing edges for agent."""
-        outgoing_map = {
-            'J1': {
-                'NS': ['E1', '-E0'],
-                'EW': ['E6', '-E16']
-            },
-            'J2': {
-                'NS': ['-E1', 'E10'],
-                'EW': ['E7', 'E11']
-            },
-            'J3': {
-                'NS': ['E15', 'E17'],
-                'EW': ['E16', 'E18']
-            },
-            'J4': {
-                'NS': ['E9', '-E15'],
-                'EW': ['-E11', 'E8']
-            }
-        }
-        
-        return outgoing_map.get(agent_id, {}).get(direction, [])
+        """
+        Get outgoing edges for agent in the given direction.
+
+        Derives outgoing edges by negating the corresponding incoming edges
+        from the detector config (ns_edges / ew_edges).  This uses the SUMO
+        convention that '-EdgeID' is the reverse of 'EdgeID'.
+
+        Falls back to an empty list when the config key is absent, so 2x2
+        configs without ns_edges/ew_edges degrade gracefully.
+        """
+        config = self.detector_config.get(agent_id, {})
+        key = 'ns_edges' if direction == 'NS' else 'ew_edges'
+        incoming = config.get(key, [])
+        return [e[1:] if e.startswith('-') else f'-{e}' for e in incoming]
     
     def _get_pressure_derivatives(self, agent_id: str, current_pressures: np.ndarray) -> np.ndarray:
         """Calculate pressure rate of change (6 values)."""

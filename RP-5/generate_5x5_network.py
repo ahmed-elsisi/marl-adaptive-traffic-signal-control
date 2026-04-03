@@ -133,10 +133,10 @@ def outgoing_edges_for_dir(r: int, c: int) -> dict:
 # For each incoming direction, map lane → outgoing direction
 # Lane 0 = right turn, Lane 1 = straight, Lane 2 = left turn
 TURN_MAP = {
-    'N': {0: 'W', 1: 'S', 2: 'E'},   # incoming from north, traveling south
-    'S': {0: 'E', 1: 'N', 2: 'W'},   # incoming from south, traveling north
-    'W': {0: 'N', 1: 'E', 2: 'S'},   # incoming from west, traveling east
-    'E': {0: 'S', 1: 'W', 2: 'N'},   # incoming from east, traveling west
+    'N': {0: 'W', 1: 'S', 2: 'E'},   # traveling south:  right=W, straight=S, left=E
+    'S': {0: 'E', 1: 'N', 2: 'W'},   # traveling north:  right=E, straight=N, left=W
+    'W': {0: 'S', 1: 'E', 2: 'N'},   # traveling east:   right=S, straight=E, left=N
+    'E': {0: 'N', 1: 'W', 2: 'S'},   # traveling west:   right=N, straight=W, left=S
 }
 
 INCOMING_DIRS = ['N', 'S', 'W', 'E']

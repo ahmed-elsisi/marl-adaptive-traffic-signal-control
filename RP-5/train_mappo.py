@@ -77,7 +77,9 @@ def build_mappo_config(config: dict) -> PPOConfig:
         'min_green': config['env_config'].get('min_green', 10),
         'max_green': config['env_config'].get('max_green', 50),
         'sumo_seed': config['env_config'].get('sumo_seed', 42),
-        'enforce_min_green': config['env_config'].get('enforce_min_green', False),  # NEW!
+        'enforce_min_green': config['env_config'].get('enforce_min_green', False),
+        'tl_program_id': config['env_config'].get('tl_program_id', '0'),
+        'edge_connectivity': config.get('edge_connectivity', {}),
     }
     
     # Register environment

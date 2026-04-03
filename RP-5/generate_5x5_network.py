@@ -337,20 +337,11 @@ def run_netconvert(out_dir: Path):
         print('  [ERROR] netconvert failed:')
         print(result.stderr[-2000:])
         raise RuntimeError('netconvert failed')
-
-    # netconvert embeds <tlLogic programID="0"> in net.xml.
-    # Our ttl.xml (additional file) also uses programID="0", which causes SUMO
-    # to error with "Another logic with id ... exists".
-    # Fix: strip the embedded tlLogic blocks from net.xml so only our ttl.xml
-    # defines the signal programs.
-    import re
-    net_path = out_dir / '5x5-grid.net.xml'
-    net_text = net_path.read_text(encoding='utf-8')
-    net_text_clean, n_removed = re.subn(
-        r'\n?\s*<tlLogic[^>]*>.*?</tlLogic>', '', net_text, flags=re.DOTALL
-    )
-    net_path.write_text(net_text_clean, encoding='utf-8')
-    print(f'  [OK] 5x5-grid.net.xml  (stripped {n_removed} embedded tlLogic entries)')
+    # NOTE: we keep the netconvert-generated <tlLogic programID="0"> in net.xml.
+    # Those entries also define the tl= link-index assignments in <connection>
+    # elements that SUMO requires at net-load time.
+    # Our custom 8-phase programs use programID="1" in ttl.xml to avoid conflict.
+    print('  [OK] 5x5-grid.net.xml')
 
 
 def write_tl_logic(out_dir: Path):
@@ -358,7 +349,7 @@ def write_tl_logic(out_dir: Path):
     for r in range(ROWS):
         for c in range(COLS):
             nxt = [str((i + 1) % len(TL_PHASES)) for i in range(len(TL_PHASES))]
-            lines.append(f'    <tlLogic id="{jid(r, c)}" type="static" programID="0" offset="0">')
+            lines.append(f'    <tlLogic id="{jid(r, c)}" type="static" programID="1" offset="0">')
             for i, (dur, state) in enumerate(TL_PHASES):
                 lines.append(f'        <phase duration="{dur}"  state="{state}" next="{nxt[i]}"/>')
             lines.append('    </tlLogic>')

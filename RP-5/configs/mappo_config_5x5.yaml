@@ -24,6 +24,8 @@ env_config:
   sumo_seed: 42
   sumo_warnings: false
   enforce_min_green: false
+  # netconvert generates programID='0'; our 8-phase ttl.xml uses programID='1'
+  tl_program_id: "1"
 
 # ── Agent Configuration ───────────────────────────────────────────────────
 agents:

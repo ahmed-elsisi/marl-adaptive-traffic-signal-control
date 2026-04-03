@@ -83,6 +83,12 @@ class SUMOTrafficEnv(MultiAgentEnv):
 
         # Optional min-green enforcement
         self.enforce_min_green = env_config.get('enforce_min_green', False)
+
+        # TL program ID to activate at startup.
+        # '0' = default (2×2 netedit network, where ttl.xml uses programID='0').
+        # '1' = custom program (5×5 netconvert network: programID='0' is
+        #       netconvert's default; our 8-phase ttl.xml uses programID='1').
+        self.tl_program_id = env_config.get('tl_program_id', '0')
         
         pid = os.getpid()
         # Use PID to generate unique port in range 10000-65000
@@ -219,12 +225,18 @@ class SUMOTrafficEnv(MultiAgentEnv):
         """
         for agent_id in self.agent_ids:
             try:
+                # Switch to the configured TL program before setting phase.
+                # Required for 5×5 network where netconvert generates programID='0'
+                # but our 8-phase custom program is programID='1'.
+                if self.tl_program_id != '0':
+                    traci.trafficlight.setProgram(agent_id, self.tl_program_id)
+
                 # Set to Phase 0 initially
                 traci.trafficlight.setPhase(agent_id, 0)
-                
+
                 # Set duration to 1000s to prevent auto-progression
                 traci.trafficlight.setPhaseDuration(agent_id, 1000.0)
-                
+
             except Exception as e:
                 print(f"Warning: Could not initialize TL for {agent_id}: {e}")
     

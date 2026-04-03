@@ -337,7 +337,20 @@ def run_netconvert(out_dir: Path):
         print('  [ERROR] netconvert failed:')
         print(result.stderr[-2000:])
         raise RuntimeError('netconvert failed')
-    print('  [OK] 5x5-grid.net.xml')
+
+    # netconvert embeds <tlLogic programID="0"> in net.xml.
+    # Our ttl.xml (additional file) also uses programID="0", which causes SUMO
+    # to error with "Another logic with id ... exists".
+    # Fix: strip the embedded tlLogic blocks from net.xml so only our ttl.xml
+    # defines the signal programs.
+    import re
+    net_path = out_dir / '5x5-grid.net.xml'
+    net_text = net_path.read_text(encoding='utf-8')
+    net_text_clean, n_removed = re.subn(
+        r'\n?\s*<tlLogic[^>]*>.*?</tlLogic>', '', net_text, flags=re.DOTALL
+    )
+    net_path.write_text(net_text_clean, encoding='utf-8')
+    print(f'  [OK] 5x5-grid.net.xml  (stripped {n_removed} embedded tlLogic entries)')
 
 
 def write_tl_logic(out_dir: Path):
@@ -355,7 +368,13 @@ def write_tl_logic(out_dir: Path):
 
 
 def write_detectors(out_dir: Path):
-    """One laneAreaDetector per incoming lane (4 edges × 3 lanes × 25 junctions = 300)."""
+    """
+    One laneAreaDetector per incoming lane (4 edges × 3 lanes × 25 junctions = 300).
+
+    pos="-100" places each detector in the LAST 100m of the lane, right before
+    the junction (SUMO negative pos counts from the end of the lane).
+    friendlyPos="true" clamps the detector to valid positions for short edges.
+    """
     lines = ['<?xml version="1.0" encoding="UTF-8"?>',
              '<additional xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
              ' xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/additional_file.xsd">',
@@ -370,7 +389,7 @@ def write_detectors(out_dir: Path):
                     lane_id = f"{edge}_{lane}"
                     lines.append(
                         f'    <laneAreaDetector id="{det_id}" lane="{lane_id}"'
-                        f' pos="0" length="100.00" file="NUL"/>'
+                        f' pos="-100.00" length="100.00" friendlyPos="true" file="NUL"/>'
                     )
             lines.append('')
 

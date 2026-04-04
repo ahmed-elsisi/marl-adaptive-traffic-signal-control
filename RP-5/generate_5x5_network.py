@@ -404,7 +404,7 @@ def write_routes(out_dir: Path):
              '    <vType id="car" length="5.00" minGap="2.50" maxSpeed="13.90"'
              ' carFollowModel="IDM" accel="3.0" decel="6.0"/>',
              '',
-             '    <!-- -- Low demand (0–600s) ----------------------------------- -->',
+            '    <!-- Low demand (0-600s) -->',
              ]
 
     # N-S flows: BN_{c} → BS_{c}
@@ -420,8 +420,7 @@ def write_routes(out_dir: Path):
             f' from="{bw(r)}" to="{be(r)}" period="40"/>'
         )
 
-    lines += ['',
-              '    <!-- -- Peak demand (600–2400s) -------------------------------- -->']
+    lines += ['', '    <!-- Peak demand (600-2400s) -->']
 
     # N-S and W-E main-axis at high frequency
     for c in range(COLS):
@@ -458,8 +457,7 @@ def write_routes(out_dir: Path):
             f' from="{bw(r_src)}" to="{bs(c_dst)}" period="15"/>'
         )
 
-    lines += ['',
-              '    <!-- -- Decline (2400–3600s) ----------------------------------- -->']
+    lines += ['', '    <!-- Decline (2400-3600s) -->']
 
     for c in range(COLS):
         lines.append(

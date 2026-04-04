@@ -3,7 +3,7 @@
 
     <vType id="car" length="5.00" minGap="2.50" maxSpeed="13.90" carFollowModel="IDM" accel="3.0" decel="6.0"/>
 
-    <!-- -- Low demand (0–600s) ----------------------------------- -->
+    <!-- Low demand (0-600s) -->
     <flow id="low_NS_0" type="car" begin="0" end="600" from="BN_0" to="BS_0" period="40"/>
     <flow id="low_NS_1" type="car" begin="0" end="600" from="BN_1" to="BS_1" period="40"/>
     <flow id="low_NS_2" type="car" begin="0" end="600" from="BN_2" to="BS_2" period="40"/>
@@ -15,7 +15,7 @@
     <flow id="low_WE_3" type="car" begin="0" end="600" from="BW_3" to="BE_3" period="40"/>
     <flow id="low_WE_4" type="car" begin="0" end="600" from="BW_4" to="BE_4" period="40"/>
 
-    <!-- -- Peak demand (600–2400s) -------------------------------- -->
+    <!-- Peak demand (600-2400s) -->
     <flow id="peak_NS_0" type="car" begin="600" end="2400" from="BN_0" to="BS_0" period="10"/>
     <flow id="peak_SN_0" type="car" begin="600" end="2400" from="-BS_0" to="-BN_0" period="12"/>
     <flow id="peak_NS_1" type="car" begin="600" end="2400" from="BN_1" to="BS_1" period="10"/>
@@ -47,7 +47,7 @@
     <flow id="peak_diag_NE_4" type="car" begin="600" end="2400" from="BN_4" to="BE_1" period="15"/>
     <flow id="peak_diag_WS_4" type="car" begin="600" end="2400" from="BW_4" to="BS_1" period="15"/>
 
-    <!-- -- Decline (2400–3600s) ----------------------------------- -->
+    <!-- Decline (2400-3600s) -->
     <flow id="decline_NS_0" type="car" begin="2400" end="3600" from="BN_0" to="BS_0" period="25"/>
     <flow id="decline_NS_1" type="car" begin="2400" end="3600" from="BN_1" to="BS_1" period="25"/>
     <flow id="decline_NS_2" type="car" begin="2400" end="3600" from="BN_2" to="BS_2" period="25"/>

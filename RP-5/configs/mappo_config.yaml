@@ -70,12 +70,12 @@ reward_config:
 # MAPPO Algorithm Configuration
 mappo_config:
   # PPO-specific
-  lr: 4.0e-4  # Learning rate (research optimal: 1e-4 to 5e-4)
+  lr: 3.0e-4  # Learning rate (research optimal: 1e-4 to 5e-4)
   gamma: 0.99  # Discount factor
   lambda_: 0.95  # GAE lambda (research optimal: 0.95)
   
   # MAPPO-specific (CRITICAL for stability)
-  num_sgd_iter: 15  # 5-15 epochs
+  num_sgd_iter: 10  # 5-10 epochs (NOT 15! Causes instability)
   sgd_minibatch_size: 4096  # Minibatch size
   train_batch_size: 32768  # Research optimal: 4000-40000 timesteps
   

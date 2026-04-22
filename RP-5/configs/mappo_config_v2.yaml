@@ -38,15 +38,54 @@ detectors:
   J1:
     incoming_edges: ["-E6", "E0", "E16", "-E1"]
     movements: [0, 1, 2]  # right, straight, left
+    ns_edges: ["-E6", "E0"]    # N and S incoming (outgoing = ["E6", "-E0"])
+    ew_edges: ["E16", "-E1"]   # W and E incoming (outgoing = ["-E16", "E1"])
   J2:
     incoming_edges: ["E1", "-E7", "-E11", "-E10"]
     movements: [0, 1, 2]
+    ns_edges: ["E1", "-E7"]
+    ew_edges: ["-E11", "-E10"]
   J3:
     incoming_edges: ["-E17", "-E16", "-E18", "-E15"]
     movements: [0, 1, 2]
+    ns_edges: ["-E17", "-E16"]
+    ew_edges: ["-E18", "-E15"]
   J4:
     incoming_edges: ["E15", "E11", "-E8", "-E9"]
     movements: [0, 1, 2]
+    ns_edges: ["E15", "E11"]
+    ew_edges: ["-E8", "-E9"]
+
+# Edge Connectivity (for neighbor outgoing/ingoing pressure metrics)
+edge_connectivity:
+  J1:
+    J2:
+      outgoing: ["-E1"]   # J2→J1
+      ingoing:  ["E1"]    # J1→J2
+    J3:
+      outgoing: ["E16"]   # J3→J1
+      ingoing:  ["-E16"]  # J1→J3
+  J2:
+    J1:
+      outgoing: ["E1"]    # J1→J2
+      ingoing:  ["-E1"]   # J2→J1
+    J4:
+      outgoing: ["-E11"]  # J4→J2
+      ingoing:  ["E11"]   # J2→J4
+  J3:
+    J1:
+      outgoing: ["-E16"]  # J1→J3
+      ingoing:  ["E16"]   # J3→J1
+    J4:
+      outgoing: ["-E15"]  # J4→J3
+      ingoing:  ["E15"]   # J3→J4
+  J4:
+    J2:
+      outgoing: ["E11"]   # J2→J4
+      ingoing:  ["-E11"]  # J4→J2
+    J3:
+      outgoing: ["E15"]   # J3→J4
+      ingoing:  ["-E15"]  # J4→J3
 
 # Normalization Configuration
 normalization:
@@ -70,7 +109,7 @@ reward_config:
 # MAPPO Algorithm Configuration
 mappo_config:
   # PPO-specific
-  lr: 4.0e-4  # Learning rate (research optimal: 1e-4 to 5e-4)
+  lr: 5.0e-4  # Learning rate (research optimal: 1e-4 to 5e-4)
   gamma: 0.99  # Discount factor
   lambda_: 0.95  # GAE lambda (research optimal: 0.95)
   
@@ -82,7 +121,7 @@ mappo_config:
   # Clipping and regularization
   clip_param: 0.2  # PPO clip parameter
   vf_clip_param: 10.0  # Value function clipping
-  grad_clip: 0.5  # Gradient clipping
+  grad_clip: 1.0  # Gradient clipping
   entropy_coeff: 0.02  # Entropy bonus (research optimal: 0.01-0.02)
   vf_loss_coeff: 1.0  # Value function loss coefficient
   

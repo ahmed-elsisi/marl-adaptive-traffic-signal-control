@@ -105,7 +105,11 @@ mappo_config:
   rollout_fragment_length: 200  # Steps per worker per iteration
   batch_mode: "complete_episodes"
   sample_timeout_s: 120  # SUMO episodes + restart overhead can exceed default 60s
-  
+  observation_filter: "MeanStdFilter"  # Running mean/std on observations (Yu et al. universal default)
+  # NOTE: this filter was NOT used for the original Semester-1 run. Adding it
+  # here for consistency with v2/baseline; existing Semester-1 checkpoints
+  # remain the immutable reference for the achieved result.
+
   # GPU configuration (RTX 3060 Ti optimization)
   num_gpus: 1
   num_gpus_per_worker: 0

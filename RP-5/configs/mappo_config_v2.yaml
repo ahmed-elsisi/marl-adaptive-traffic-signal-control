@@ -144,7 +144,8 @@ mappo_config:
   rollout_fragment_length: 200  # Steps per worker per iteration
   batch_mode: "complete_episodes"
   sample_timeout_s: 120  # SUMO episodes + restart overhead can exceed default 60s
-  
+  observation_filter: "MeanStdFilter"  # Running mean/std on observations (Yu et al. universal default)
+
   # GPU configuration (RTX 3060 Ti optimization)
   num_gpus: 1
   num_gpus_per_worker: 0
@@ -171,7 +172,7 @@ model_config:
     
     # Critic network (centralized, larger capacity)
     # Receives 280-dim global state (70 × 4 agents)
-    critic_hiddens: [256, 128, 64]
+    critic_hiddens: [512, 256, 128]
     critic_activation: "relu"
     
     # Initialization

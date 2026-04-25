@@ -38,7 +38,7 @@ from typing import Dict, List, Tuple
 try:
     import libsumo as traci
     print("Using libsumo (8x faster)")
-except ImportError:
+except (ImportError, SystemError, OSError):
     import traci
     print("Using standard TraCI")
 

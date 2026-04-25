@@ -171,6 +171,7 @@ def build_mappo_config(config: dict) -> PPOConfig:
             rollout_fragment_length=mappo_cfg.get('rollout_fragment_length', 200),
             batch_mode=mappo_cfg.get('batch_mode', 'complete_episodes'),
             sample_timeout_s=mappo_cfg.get('sample_timeout_s', 120),
+            observation_filter=mappo_cfg.get('observation_filter', 'MeanStdFilter'),
         )
         .resources(
             num_gpus=mappo_cfg.get('num_gpus', 1),

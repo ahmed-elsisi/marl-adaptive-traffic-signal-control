@@ -30,7 +30,7 @@ try:
     else:
         import traci
         print("Using standard TraCI")
-except ImportError:
+except (ImportError, SystemError, OSError):
     import traci
     print("Using standard TraCI")
 

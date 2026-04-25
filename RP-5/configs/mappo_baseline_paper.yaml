@@ -1,22 +1,44 @@
 # MAPPO Baseline Configuration — Yu et al. (2021)
 # "The Surprising Effectiveness of PPO in Cooperative Multi-Agent Games"
 #
-# PURPOSE: Reproduce the paper's MAPPO hyperparameters for direct comparison
-#          against our enhanced MAPPO (mappo_config.yaml).
+# DOMAIN ANALOG: Hanabi (Tables 11 + 18 in the paper appendix).
+#   Hanabi is the only adopted MAPPO configuration in the paper that uses an
+#   MLP (no GRU/RNN). It is the closest paper-published preset for our setup
+#   because (a) our 70-dim traffic observation already contains derivatives
+#   and elapsed-phase-time, making it Markov-rich enough to skip recurrence,
+#   and (b) RLlib's PPO recurrence path uses LSTM, not GRU, so an MLP-only
+#   reproduction avoids an architectural deviation.
 #
-# WHAT CHANGES vs mappo_config.yaml (algorithm only — environment is identical):
-#   lr:             3e-4  → 5e-4   (paper Table 1)
-#   num_sgd_iter:   10    → 15     (paper Table 1)
-#   entropy_coeff:  0.02  → 0.01   (paper Table 1)
-#   grad_clip:      0.5   → 10.0   (paper: max_grad_norm = 10)
-#   actor_hiddens:  [128, 64] → [64, 64]  (paper: 2×64 MLP)
-#   critic_hiddens: [256,128,64] → [64, 64]  (paper: 2×64 MLP)
-#   critic_activation: relu → tanh  (paper uses tanh for both networks)
+# CHANGES vs the universal MAPPO defaults (onpolicy/config.py) come from
+# Tables 11 (Hanabi common) and 18 (Hanabi adopted):
+#   lr (actor):     5e-4 → 7e-4
+#   lr (critic):    5e-4 → 1e-3   (asymmetric — see "Caveats" below)
+#   entropy_coef:   0.01 → 0.015
+#   fc layer dim:   64   → 512    ← bigger MLP compensates for no recurrence
+#   num fc:         2    → 2      (so [512, 512])
+#   activation:     ReLU → ReLU   (universal; we previously used tanh — wrong)
+#   network:        rnn  → mlp    (Hanabi adopted)
+#   ppo_epoch:      15   → 15     (universal; matches Hanabi)
+#   num_mini_batch: 1    → 1      (universal; matches Hanabi)
+#   clip_param:     0.2  → 0.2    (used for BOTH policy and value clipping)
+#   max_grad_norm:  10.0 → 10.0   (universal)
 #
-# WHAT IS IDENTICAL (ensures fair comparison — only algorithm changes):
+# CAVEATS / DEVIATIONS (documented for the thesis, not hidden):
+#   - Hanabi uses asymmetric learning rates (actor 7e-4, critic 1e-3). RLlib's
+#     PPOConfig.training() exposes a single `lr`. We adopt the actor lr (7e-4)
+#     as the single value — most defensible since policy updates are what the
+#     PPO clipping bound is designed around.
+#   - Paper uses a GRU when network=rnn; RLlib's recurrent path is LSTM. We
+#     stay MLP to match Hanabi exactly and side-step this mismatch.
+#   - vf_clip_param=0.2 — paper applies the SAME clip ε to value loss when
+#     `use_clipped_value_loss=True`. RLlib's default 10.0 effectively disables
+#     value clipping; we override to 0.2 for paper fidelity.
+#
+# WHAT IS IDENTICAL to mappo_config.yaml / mappo_config_v2.yaml (ensures fair
+# comparison — only ALGORITHM hyperparameters and architecture differ):
 #   Environment, SUMO network, reward function, observation space, seed,
-#   batch sizes, clip_param, vf_clip_param, vf_loss_coeff, value normalization,
-#   orthogonal init, number of workers, training iterations.
+#   train_batch_size, parameter sharing, value normalization, orthogonal init,
+#   number of workers, training iterations, observation_filter (MeanStdFilter).
 
 # ── Environment Configuration (IDENTICAL to mappo_config.yaml) ───────────────
 env_config:
@@ -80,23 +102,23 @@ reward_config:
   clip_min: -3.0
   clip_max: 1.0
 
-# ── MAPPO Algorithm Configuration — PAPER VALUES ──────────────────────────────
+# ── MAPPO Algorithm Configuration — HANABI ADOPTED VALUES (Table 18) ─────────
 mappo_config:
   # PPO-specific
-  lr: 5.0e-4        # PAPER: 5e-4 (our MAPPO uses 3e-4)
+  lr: 7.0e-4         # PAPER (Hanabi actor lr); critic lr 1e-3 not expressible in RLlib
   gamma: 0.99
   lambda_: 0.95
 
-  # PAPER: 15 epochs per update
-  num_sgd_iter: 15  # PAPER: 15 (our MAPPO uses 10)
-  sgd_minibatch_size: 4096
+  # PAPER: 15 epochs (Hanabi), num_mini_batch=1 → minibatch == full batch
+  num_sgd_iter: 15
+  sgd_minibatch_size: 32768   # PAPER: num_mini_batch=1 → equal to train_batch_size
   train_batch_size: 32768
 
   # Clipping and regularization
   clip_param: 0.2
-  vf_clip_param: 10.0
-  grad_clip: 10.0   # PAPER: max_grad_norm=10 (our MAPPO uses 0.5)
-  entropy_coeff: 0.01  # PAPER: 0.01 (our MAPPO uses 0.02)
+  vf_clip_param: 0.2     # PAPER: same ε used for value clipping (use_clipped_value_loss=True)
+  grad_clip: 10.0        # PAPER: max_grad_norm=10
+  entropy_coeff: 0.015   # PAPER (Hanabi): 0.015 (universal default is 0.01)
   vf_loss_coeff: 1.0
 
   # Model configuration
@@ -112,14 +134,15 @@ mappo_config:
     policies_to_train: ["shared_policy"]
     policy_mapping_fn: "lambda agent_id, episode, worker, **kwargs: 'shared_policy'"
 
-  # Rollout settings (IDENTICAL)
+  # Rollout settings
   num_rollout_workers: 3
   num_envs_per_worker: 1
   rollout_fragment_length: 200
   batch_mode: "complete_episodes"
-  sample_timeout_s: 120  # SUMO episodes + restart overhead can exceed default 60s
+  sample_timeout_s: 120
+  observation_filter: "MeanStdFilter"   # PAPER (universal): use_feature_normalization=True
 
-  # GPU configuration (IDENTICAL)
+  # GPU configuration
   num_gpus: 1
   num_gpus_per_worker: 0
 
@@ -132,28 +155,28 @@ mappo_config:
     env_config:
       use_gui: false
 
-# ── Neural Network Architecture — PAPER VALUES ────────────────────────────────
+# ── Neural Network Architecture — HANABI ADOPTED (Tables 11 + 18) ────────────
 model_config:
   custom_model: "mappo_centralized"
   custom_model_config:
     num_agents: 4
 
-    # PAPER: Actor = 2×64, tanh activation
-    actor_hiddens: [64, 64]       # PAPER (our MAPPO uses [128, 64])
-    actor_activation: "tanh"
+    # PAPER (Hanabi): 2-layer MLP, fc_dim=512, ReLU
+    actor_hiddens: [512, 512]       # PAPER (Hanabi): fc layer dim=512, num fc=2
+    actor_activation: "relu"        # PAPER: ReLU (universal; we previously had tanh)
 
-    # PAPER: Critic = 2×64, tanh activation (same size as actor)
-    critic_hiddens: [64, 64]      # PAPER (our MAPPO uses [256, 128, 64])
-    critic_activation: "tanh"     # PAPER (our MAPPO uses relu)
+    # PAPER (Hanabi): same 2-layer 512 MLP for the critic
+    critic_hiddens: [512, 512]      # PAPER (Hanabi): fc layer dim=512, num fc=2
+    critic_activation: "relu"       # PAPER: ReLU
 
-    # Initialization (IDENTICAL)
+    # Initialization (universal paper default)
     use_orthogonal_init: true
     orthogonal_gain: 0.01
 
-    # Value normalization (IDENTICAL — paper uses this)
+    # Value normalization (universal paper default — use_valuenorm=True)
     use_value_normalization: true
 
-    # LSTM disabled (IDENTICAL)
+    # MLP only — Hanabi network=mlp; do not enable LSTM
     use_lstm: false
     lstm_cell_size: 64
     max_seq_len: 20

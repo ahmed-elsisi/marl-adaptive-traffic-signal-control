@@ -15,7 +15,7 @@ try:
     # if os.environ.get('LIBSUMO_AS_TRACI', '0') == '1':
     import libsumo as traci
     print("Using libsumo (8x faster)")
-except ImportError:
+except (ImportError, SystemError, OSError):
     import traci
     print("Using standard TraCI")
 

@@ -12,8 +12,27 @@ import yaml
 import argparse
 import numpy as np
 import csv
+from pathlib import Path
 from typing import Dict, List
 from datetime import datetime
+
+# NumPy 2.x → 1.x checkpoint compatibility shim.
+# Checkpoints pickled under NumPy 2.x reference `numpy._core`; alias it to
+# `numpy.core` when we're running on NumPy 1.x so unpickling succeeds.
+# Must run before any pickle.loads that touches NumPy arrays (i.e., before
+# Ray's PPO.from_checkpoint).
+if not hasattr(np, '_core'):
+    import numpy.core as _np_core
+    sys.modules['numpy._core'] = _np_core
+    for _sub in ('multiarray', 'umath', '_methods', '_dtype_ctypes',
+                 'numeric', 'fromnumeric', 'arrayprint', '_internal',
+                 '_exceptions', 'overrides'):
+        try:
+            __import__(f'numpy.core.{_sub}')
+            sys.modules[f'numpy._core.{_sub}'] = sys.modules[f'numpy.core.{_sub}']
+        except ImportError:
+            pass
+
 import ray
 from ray import tune
 from ray.rllib.algorithms.ppo import PPO
@@ -23,7 +42,14 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = Path(__file__).resolve().parent
+sys.path.append(str(PROJECT_ROOT))
+
+
+def _resolve_path(p: str) -> str:
+    """Resolve a path against RP-5/ (script dir) when it's relative."""
+    path = Path(p)
+    return str(path if path.is_absolute() else (PROJECT_ROOT / path))
 
 from marl_env.sumo_env import SUMOTrafficEnv
 from models.mappo_model import MAPPOModelCentralizedCritic
@@ -31,7 +57,7 @@ from models.mappo_model import MAPPOModelCentralizedCritic
 try:
     import libsumo as traci
     print("✓ Using libsumo (fast)")
-except ImportError:
+except (ImportError, SystemError, OSError):
     import traci
     print("✓ Using standard TraCI")
 
@@ -43,8 +69,8 @@ def ensure_results_dir(base_dir: str = "metrics") -> str:
 
 
 def load_config(config_path: str) -> Dict:
-    """Load configuration from YAML file."""
-    with open(config_path, 'r') as f:
+    """Load configuration from YAML file (path resolved against RP-5/ if relative)."""
+    with open(_resolve_path(config_path), 'r') as f:
         return yaml.safe_load(f)
 
 
@@ -344,30 +370,35 @@ def evaluate_mappo(
     checkpoint_path: str,
     num_episodes: int = 3,
     use_gui: bool = False,
-    config_path: str = 'configs/mappo_config.yaml',
+    config_path: str = 'configs/mappo_config_v2.yaml',
     results_dir: str = "metrics",
     seed: int = 42
 ) -> Dict:
     """
     Evaluate MAPPO with CORRECT arrival tracking.
-    
+
     Critical fix: Samples arrivals DURING delta_time loop.
     """
     results_dir = ensure_results_dir(results_dir)
     config = load_config(config_path)
     config['env_config']['use_gui'] = use_gui
     config['env_config']['sumo_seed'] = seed
-    
-    print(f"⚙️  Configuration:")
+    # Resolve SUMO file paths against RP-5/ so the script works from any cwd
+    config['env_config']['network_file'] = _resolve_path(config['env_config']['network_file'])
+    config['env_config']['route_file'] = _resolve_path(config['env_config']['route_file'])
+
+    print(f"⚙️  Configuration: {config_path}")
     print(f"  Seed: {seed}")
     print(f"  Delta time: {config['env_config'].get('delta_time', 5)}s")
-    
+
     # Add all required config
     config['env_config']['agents'] = config['agents']
     config['env_config']['network_topology'] = config['network_topology']
     config['env_config']['detectors'] = config['detectors']
     config['env_config']['normalization'] = config['normalization']
     config['env_config']['reward_config'] = config['reward_config']
+    if 'edge_connectivity' in config:
+        config['env_config']['edge_connectivity'] = config['edge_connectivity']
     
     # Initialize Ray
     if not ray.is_initialized():
@@ -504,7 +535,7 @@ def main():
     parser.add_argument('--checkpoint', type=str, required=True)
     parser.add_argument('--episodes', type=int, default=3)
     parser.add_argument('--gui', action='store_true')
-    parser.add_argument('--config', type=str, default='configs/mappo_config.yaml')
+    parser.add_argument('--config', type=str, default='configs/mappo_config_v2.yaml')
     parser.add_argument('--results-dir', type=str, default='metrics')
     parser.add_argument('--seed', type=int, default=42)
     

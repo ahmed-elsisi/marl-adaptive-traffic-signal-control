@@ -96,14 +96,20 @@ normalization:
   waiting_time_max: 60
   spatial_discount: 0.9
 
-# Reward Configuration (research-backed coefficients)
+# Reward Configuration — IPPO LOCAL REWARDS
+# Each agent optimizes only its own intersection metrics. The neighbor
+# pressure term (the sole multi-agent coupling in the reward function) is
+# zeroed out, so there is no shared / cooperative reward signal — agents
+# learn independently from purely local observations and rewards.
+# This matches the standard IPPO definition (each agent treats others as
+# part of the environment).
 reward_config:
   queue_weight: -0.25
   waiting_time_weight: -1.0
   throughput_weight: 0.1
   pressure_weight: -0.4
-  neighbor_pressure_weight: -0.5
-  spatial_discount: 0.9
+  neighbor_pressure_weight: 0.0    # IPPO: no shared/neighbor reward (MAPPO uses -0.5)
+  spatial_discount: 0.9            # unused while neighbor_pressure_weight=0
   clip_min: -3.0
   clip_max: 1.0
 

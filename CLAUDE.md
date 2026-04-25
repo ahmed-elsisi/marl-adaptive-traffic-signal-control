@@ -213,12 +213,13 @@ Actor activation is configurable via `actor_activation` in the model config (`mo
 - `mappo_config_v2.yaml` — **current canonical MAPPO** (improvised): lr=5e-4, grad_clip=1.0, critic=[512,256,128], richer per-junction `ns_edges`/`ew_edges` and an `edge_connectivity` block enabling directional neighbour pressure metrics.
 - `mappo_config.yaml` — Semester-1 frozen v1 baseline (lr=4e-4, grad_clip=0.5, critic=[256,128,64]). Kept for reproducing the Semester-1 results.
 - `mappo_baseline_paper.yaml` — Yu et al. (2021) "Surprising Effectiveness of PPO" reference hyperparameters, **Hanabi adopted preset** (Tables 11 + 18): lr=7e-4 (actor), epoch=15, mini-batch=1 → sgd_minibatch=train_batch_size=32768, clip=0.2 (policy + value), entropy=0.015, ReLU, MLP [512, 512] for both actor and critic, max_grad_norm=10.0. Hanabi is the only adopted MAPPO preset that uses MLP (no GRU), making it the closest paper-published config for our setup.
-- `ippo_config.yaml` — **IPPO comparator**: verbatim copy of `mappo_config_v2.yaml` except `custom_model: "ippo_decentralized"`. All hyperparameters (lr, gamma, λ, clip, batches, entropy, grad_clip, actor/critic hidden sizes) kept identical to MAPPO v2 so that **critic centralization is the only varied factor** between the two experiments.
+- `ippo_config.yaml` — **IPPO comparator**: copy of `mappo_config_v2.yaml` with two differences — `custom_model: "ippo_decentralized"` and `reward_config.neighbor_pressure_weight: 0.0`. All algorithm hyperparameters (lr, gamma, λ, clip, batches, entropy, grad_clip, actor/critic hidden sizes) are identical to MAPPO v2; what differs is the **full decentralized package**: decentralized critic + purely local reward. This makes IPPO a clean "fully independent agents" comparator against MAPPO's "fully cooperative CTDE" setup.
 
 **IPPO scaffolding (Semester 2, Phase 1, Task 1.3):**
 - `RP-5/models/ippo_model.py` — `IPPOModelDecentralizedCritic`. Same actor as MAPPO; critic input is the agent's own 70-dim local observation (vs MAPPO's 280-dim concatenated global state). No `centralized_critic_postprocessing` hook — RLlib's default PPO postprocessing computes GAE on local obs. Registered as `"ippo_decentralized"`.
 - `RP-5/train_ippo.py` — IPPO training entry point. Mirrors `train_mappo.py` but with no `postprocess_fn` on the `PolicySpec`, model name swapped to `ippo_decentralized`, and Ray Tune experiment name `"ippo_traffic_control"` so checkpoints land in their own directory (`results/ippo_traffic_control/`). Defaults to `--config configs/ippo_config.yaml`.
-- Parameter sharing is preserved: all 4 agents still share a single `"shared_policy"` for IPPO, matching MAPPO setup. The only varied factor remains critic centralization.
+- **Reward**: IPPO zeroes out `neighbor_pressure_weight` (the sole multi-agent coupling term in `reward_function.py`). Each agent optimizes only its own intersection metrics — queue, waiting time, throughput, and its own pressure. MAPPO keeps the neighbor coupling term active.
+- **Parameter sharing**: still preserved — all 4 agents share a single `"shared_policy"` for IPPO, matching MAPPO setup. So the differences between MAPPO and IPPO are exactly: (1) centralized vs decentralized critic and (2) shared (with neighbour coupling) vs purely local reward. This is the "coordinated MARL" vs "independent learners" contrast, not a single-variable critic ablation.
 - `evaluate.py` and `compare_baseline.py` still hardcode the MAPPO model — they need an `--algo {mappo,ippo}` flag (or a parallel `evaluate_ippo.py`) before IPPO checkpoints can be evaluated.
 
 **What changed in v2 vs v1 (Semester-1 baseline):**
@@ -291,8 +292,9 @@ Outperformed both heuristic baselines:
 
 **Task 1.3:** Implement Independent PPO (IPPO) — *scaffolded*
 - Status: model (`models/ippo_model.py`), config (`configs/ippo_config.yaml`), and training entry point (`train_ippo.py`) all created. Ready to train.
-- Decentralized critic: each agent's value function sees only its own 70-dim local observation (vs MAPPO's 280-dim concatenated global state).
-- All hyperparameters identical to MAPPO v2 — **isolated variable = critic centralization** (not reward structure, to avoid confounding two factors).
+- **Decentralized critic**: each agent's value function sees only its own 70-dim local observation (vs MAPPO's 280-dim concatenated global state).
+- **Local rewards**: `neighbor_pressure_weight` is zeroed in the IPPO config so each agent optimizes only its own intersection metrics — no cooperative / shared reward signal. MAPPO retains the neighbour coupling term.
+- All algorithm hyperparameters identical to MAPPO v2 (lr, gamma, λ, clip, batches, entropy, grad_clip, actor/critic hidden sizes). The differences between MAPPO and IPPO are exactly the two MARL design choices: (1) centralized vs decentralized critic and (2) shared vs local reward — the "fully cooperative" vs "fully independent" contrast.
 - Parameter sharing preserved: all 4 agents share a single `"shared_policy"`, matching MAPPO setup.
 - Outstanding: extend `evaluate.py` and `compare_baseline.py` with `--algo {mappo,ippo}` flag before IPPO checkpoints can be evaluated against the baselines.
 
@@ -582,10 +584,10 @@ git push
 - Comprehensive inline comments for MARL-specific logic
 
 ### Experimentation
-- Each experiment = one config file under `configs/`. `mappo_config_v2.yaml` is the current canonical MAPPO; `mappo_config.yaml` and `mappo_baseline_paper.yaml` are kept for legacy / comparator runs.
+- Each experiment = one config file under `configs/`. `mappo_config_v2.yaml` is the current canonical MAPPO; `mappo_config.yaml`, `mappo_baseline_paper.yaml`, and `ippo_config.yaml` are kept for legacy / comparator runs.
 - Unique run names with timestamps (auto-generated by Ray Tune)
 - TensorBoard logs in `RP-5/logs/tensorboard/`
-- Checkpoints in `RP-5/results/mappo_traffic_control/`
+- Checkpoints in `RP-5/results/mappo_traffic_control/` (MAPPO) and `RP-5/results/ippo_traffic_control/` (IPPO)
 
 ### Documentation
 - README for each environment directory
@@ -670,7 +672,7 @@ If set to `true`, phase changes are blocked until 10s have elapsed (hard constra
 When helping with this project:
 
 1. **Understand the dual-environment methodology** - Traffic is baseline, dilemmas are the research contribution
-2. **Respect the comparative framework** - IPPO vs MAPPO isolates coordination value
+2. **Respect the comparative framework** - MAPPO vs IPPO contrasts the full cooperative MARL package (centralized critic + shared/neighbour-coupled reward) against the full independent-learners package (decentralized critic + purely local reward). Coordination value = MAPPO performance − IPPO performance.
 3. **Recognize CTDE is central** - Centralized training, decentralized execution
 4. **Traffic is cooperative** - Network effects align incentives
 5. **Dilemmas create conflict** - Individual gain from exploitation

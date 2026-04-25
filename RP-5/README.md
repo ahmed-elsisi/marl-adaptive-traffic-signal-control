@@ -1,218 +1,148 @@
-# SUMO Files Directory
+# RP-5: MAPPO & IPPO for Traffic Signal Control
 
-This directory should contain your SUMO simulation files for the 2×2 grid network.
+Multi-Agent Reinforcement Learning for adaptive traffic signal control on a 2×2 grid network in SUMO. This directory holds the Semester-1 implementation (MAPPO with a centralized critic) and the Semester-2 IPPO comparator (decentralized critic) used to quantify the value of critic centralization.
 
-## Required Files
+This is the code-level README. For the research framing, methodology, and full Semester-2 plan, see `../CLAUDE.md`.
 
-1. **2x2grid.net.xml** - SUMO network file (junctions, edges, lanes, traffic lights)
-2. **2x2grid.rou.xml** - Route/vehicle file (traffic demand)
-3. **2x2grid.det.xml** - Detector file (loop detectors at stop lines)
-4. **2x2grid.sumocfg** - SUMO configuration file (references all above files)
+## What's here
 
-## Quick Setup
+```
+RP-5/
+├── train_mappo.py              # MAPPO training (centralized critic)
+├── train_ippo.py               # IPPO training (decentralized critic)
+├── evaluate.py                 # Evaluate a trained checkpoint, dump CSV + plots
+├── compare_baseline.py         # 3-way: MAPPO vs Fixed-Time vs Max-Pressure
+├── compare_mappo_variants.py   # MAPPO v1 vs v2 vs paper-baseline comparison
+├── fixed-cycles.py             # Fixed-time baseline controller
+├── max-pressure.py             # Max-pressure baseline controller
+├── validate_edges.py           # SUMO edge connectivity diagnostic
+├── configs/
+│   ├── mappo_config_v2.yaml        # Canonical MAPPO (current)
+│   ├── mappo_config.yaml           # Semester-1 frozen v1 baseline
+│   ├── mappo_baseline_paper.yaml   # Yu et al. 2021, Hanabi adopted preset
+│   └── ippo_config.yaml            # IPPO comparator (decentralized critic)
+├── models/
+│   ├── mappo_model.py          # MAPPOModelCentralizedCritic (RLlib custom model)
+│   └── ippo_model.py           # IPPOModelDecentralizedCritic (RLlib custom model)
+├── marl_env/
+│   ├── sumo_env.py             # SUMOTrafficEnv (RLlib MultiAgentEnv)
+│   ├── obs_builder.py          # 70-dim observation builder (local + neighbour)
+│   └── reward_function.py      # 5-component reward (waiting/queue/throughput/pressure/neighbour-pressure)
+├── sumo_network/               # 2x2 grid: marl-proj.{net,rou,sumocfg,ttl,add,nod}.xml
+├── results/                    # Ray Tune output (checkpoints + per-iteration metrics)
+├── metrics/                    # Evaluation outputs (CSV time-series + PNG plots)
+├── logs/tensorboard/           # TensorBoard training logs
+└── tests/                      # Validation and setup scripts
+```
 
-### Option 1: Using netgenerate (Recommended for testing)
+## Prerequisites
+
+- Python 3.9+ (developed on Python 3.11, Windows 11)
+- SUMO v1.x — Windows binaries (`sumo.exe` / `sumo-gui.exe`) on `PATH`, with `SUMO_HOME` set
+- CUDA 11.8+ or 12.1+ for GPU training (developed on RTX 3060 Ti)
+
+Install Python dependencies:
 
 ```bash
-# Generate 2x2 grid network
-netgenerate --grid \
-    --grid.number 2 \
-    --grid.length 200 \
-    --default.lanenumber 3 \
-    --default-junction-type traffic_light \
-    --tls.guess true \
-    --junctions.join \
-    --output-file 2x2grid.net.xml
-
-# Generate random traffic
-python $SUMO_HOME/tools/randomTrips.py \
-    -n 2x2grid.net.xml \
-    -r 2x2grid.rou.xml \
-    -e 3600 \
-    -p 2.0 \
-    --fringe-factor 10 \
-    --min-distance 200 \
-    --validate
-
-# Generate detectors at stop lines
-python $SUMO_HOME/tools/generateTLSE2Detectors.py \
-    -n 2x2grid.net.xml \
-    -o 2x2grid.det.xml \
-    -d 250 \
-    -f 60
-
-# Test the simulation
-sumo -c 2x2grid.sumocfg --start --quit-on-end
+pip install -r requirements.txt
 ```
 
-### Option 2: Using NETEDIT (GUI-based)
+**TraCI vs libsumo:** the code prefers `libsumo` (8× faster) and falls back to standard TraCI when libsumo fails to load. On the development machine libsumo fails at startup, so standard TraCI is what actually runs — do not force `LIBSUMO_AS_TRACI=1` and expect a speedup.
+
+## Quick start
+
+### Train MAPPO (canonical v2)
 
 ```bash
-# Open NETEDIT
-netedit
-
-# Create network graphically:
-# 1. Add 4 junctions (J1, J2, J3, J4) in a grid
-# 2. Set junction types to "traffic_light"
-# 3. Connect with 3-lane edges
-# 4. Save as 2x2grid.net.xml
-
-# Then generate routes and detectors as above
+python train_mappo.py --config configs/mappo_config_v2.yaml --iterations 1000
 ```
 
-## Network Requirements
+The script defaults `--config` to the v1 baseline (`mappo_config.yaml`) for legacy reasons — **always pass `--config` explicitly** to use v2.
 
-**Critical**: Your network must have these junction IDs:
-- `J1` - Top-left intersection
-- `J2` - Top-right intersection
-- `J3` - Bottom-left intersection
-- `J4` - Bottom-right intersection
-
-**Topology** (must match config):
-```
-J1 ─── J2
-│      │
-J3 ─── J4
-```
-
-**Detectors**: Each junction needs 12 lane area detectors:
-- 4 incoming directions × 3 lanes (right, straight, left)
-- Naming convention: `det_<edge>_<lane>_stop`
-- Example: `det_-E6_0_stop` for J1's west approach, right lane
-
-## Verification
-
-After generating files, verify they work:
+### Train IPPO (decentralized critic)
 
 ```bash
-# Check network file is valid
-netconvert -s 2x2grid.net.xml --plain-output-prefix test_
-
-# Check routes are valid
-duarouter -n 2x2grid.net.xml -r 2x2grid.rou.xml \
-    --ignore-errors --no-warnings
-
-# Run quick simulation
-sumo -c 2x2grid.sumocfg --duration-log.statistics \
-    --start --quit-on-end
-
-# List traffic light IDs (should show J1, J2, J3, J4)
-sumo -c 2x2grid.sumocfg --tls.all-off \
-    --duration-log.statistics | grep "traffic light"
+python train_ippo.py --config configs/ippo_config.yaml --iterations 1000
 ```
 
-## Detector Configuration
+`ippo_config.yaml` is a verbatim copy of `mappo_config_v2.yaml` except for the model registration, so the only varied factor between the two experiments is critic centralization (parameter sharing, hyperparameters, actor architecture, and reward are all identical).
 
-The detector file (2x2grid.det.xml) should have entries like:
-
-```xml
-<additional>
-    <laneAreaDetector id="det_-E6_0_stop" lane="-E6_0" pos="0" endPos="250" freq="60"/>
-    <laneAreaDetector id="det_-E6_1_stop" lane="-E6_1" pos="0" endPos="250" freq="60"/>
-    <!-- ... more detectors ... -->
-</additional>
-```
-
-**Important Parameters**:
-- `pos="0"` - Start at lane beginning
-- `endPos="250"` - Detection zone length (meters)
-- `freq="60"` - Update frequency (seconds) - can be any value, we read on-demand
-
-## Traffic Demand
-
-For testing, use these parameters for `randomTrips.py`:
+### Resume from a checkpoint
 
 ```bash
-# Light traffic (for initial testing)
--p 5.0   # Period between vehicles: 5 seconds
-
-# Medium traffic (for training)
--p 2.0   # Period: 2 seconds
-
-# Heavy traffic (for evaluation)
--p 1.0   # Period: 1 second
+python train_mappo.py --config configs/mappo_config_v2.yaml \
+    --resume results/mappo_traffic_control/PPO_sumo_traffic_<run_id>/checkpoint_000101
 ```
 
-## Troubleshooting
-
-**Error**: "Junction J1 not found"
-- Make sure junction IDs in network match: J1, J2, J3, J4
-- Check with: `grep 'junction id=' 2x2grid.net.xml`
-
-**Error**: "Detector not found"
-- Regenerate detectors with correct naming
-- Check detector IDs match the config in `configs/mappo_config.yaml`
-
-**Traffic not flowing**:
-- Check routes are valid: `duarouter -n 2x2grid.net.xml -r 2x2grid.rou.xml`
-- Increase traffic volume: reduce `-p` value in randomTrips
-- Check for network connectivity issues in NETEDIT
-
-**Vehicles teleporting**:
-- This is normal when traffic is very heavy
-- Can disable with `--time-to-teleport -1` in sumocfg
-
-## Example: Complete Setup Script
-
-Save this as `setup_sumo_files.sh`:
+### Watch training metrics
 
 ```bash
-#!/bin/bash
-set -e
-
-echo "Generating SUMO network files..."
-
-# Generate network
-netgenerate --grid \
-    --grid.number 2 \
-    --grid.length 200 \
-    --default.lanenumber 3 \
-    --default-junction-type traffic_light \
-    --tls.guess true \
-    --output-file 2x2grid.net.xml
-
-echo "✓ Network generated"
-
-# Generate routes
-python $SUMO_HOME/tools/randomTrips.py \
-    -n 2x2grid.net.xml \
-    -r 2x2grid.rou.xml \
-    -e 3600 \
-    -p 2.0 \
-    --fringe-factor 10 \
-    --validate
-
-echo "✓ Routes generated"
-
-# Generate detectors
-python $SUMO_HOME/tools/generateTLSE2Detectors.py \
-    -n 2x2grid.net.xml \
-    -o 2x2grid.det.xml \
-    -d 250 \
-    -f 60
-
-echo "✓ Detectors generated"
-
-# Test
-echo "Testing simulation..."
-sumo -c 2x2grid.sumocfg --duration-log.statistics --start --quit-on-end
-
-echo "✓ All SUMO files ready!"
+tensorboard --logdir logs/tensorboard/
 ```
 
-Run it:
+### Evaluate a trained policy
+
 ```bash
-chmod +x setup_sumo_files.sh
-./setup_sumo_files.sh
+# Headless, 3 episodes
+python evaluate.py --checkpoint results/mappo_traffic_control/<run_id> --episodes 3 --seed 42
+
+# With SUMO GUI
+python evaluate.py --checkpoint <path> --gui
+
+# 3-way comparison: MAPPO vs Fixed-Time vs Max-Pressure
+python compare_baseline.py --checkpoint <path> --episodes 1 --seed 42
 ```
 
-## Resources
+`evaluate.py` and `compare_baseline.py` currently load the MAPPO model class. To evaluate IPPO checkpoints, an `--algo {mappo,ippo}` flag still needs to be wired in (tracked in CLAUDE.md as outstanding).
 
-- SUMO Documentation: https://sumo.dlr.de/docs/
-- netgenerate: https://sumo.dlr.de/docs/netgenerate.html
-- randomTrips: https://sumo.dlr.de/docs/Tools/Trip.html
-- Detectors: https://sumo.dlr.de/docs/Simulation/Output/Lanearea_Detectors_(E2).html
+Outputs land in `metrics/`:
+- `mappo_ep<N>_metrics.csv` — per-second time series (halts, arrivals, wait, speed)
+- `mappo_ep<N>_halting.png`, `*_arrivals_wait.png`, `*_per_agent.png`
+- `comparison_all_overlay.png`, `*_summary.png`, `*_heatmap.png` (from `compare_baseline.py`)
 
----
+## Configs
 
-**Note**: The placeholder files in this directory need to be replaced with actual SUMO-generated files before running the training.
+All four configs share an identical environment block (SUMO files, agents, network topology, detectors, reward weights). They differ only in algorithm hyperparameters and model architecture.
+
+| Config | Purpose | Critic | Notable hyperparameters |
+| --- | --- | --- | --- |
+| `mappo_config_v2.yaml` | Canonical MAPPO (current) | Centralized [512, 256, 128] | lr=5e-4, grad_clip=1.0, epochs=15, entropy=0.02 |
+| `mappo_config.yaml` | Frozen Semester-1 baseline | Centralized [256, 128, 64] | lr=4e-4, grad_clip=0.5 |
+| `mappo_baseline_paper.yaml` | Yu et al. 2021 Hanabi adopted preset | Centralized [512, 512] (ReLU) | lr=7e-4, grad_clip=10.0, vf_clip=0.2, entropy=0.015 |
+| `ippo_config.yaml` | IPPO comparator | **Decentralized** [512, 256, 128] | All other knobs identical to MAPPO v2 |
+
+See `../CLAUDE.md` for the full hyperparameter table and the detailed rationale behind each preset.
+
+## Environment specifics (2×2 grid)
+
+- **Junctions**: `J1` (top-left), `J2` (top-right), `J3` (bottom-left), `J4` (bottom-right)
+- **Episode**: 3,600 simulation seconds, action every 5s (720 decisions/episode)
+- **Observation**: 70-dim per agent — 28 local features + 21 features × 2 neighbours
+- **Action space**: discrete, 4 phases (NS through+right, NS left, EW through+right, EW left)
+- **Reward**: `r = -1.0·W -0.25·Q + 0.1·T - 0.4·P - 0.5·N`, clipped to `[-3.0, 1.0]`
+  - W: cumulative waiting time, Q: queue length, T: throughput, P: positive pressure, N: neighbour pressure
+
+The full SUMO network is in `sumo_network/marl-proj.*` and is committed to the repo — there is no setup script to run before training.
+
+## Outputs
+
+| Path | Contents |
+| --- | --- |
+| `results/mappo_traffic_control/` | MAPPO Ray Tune trial dirs, checkpoints, `progress.csv` |
+| `results/ippo_traffic_control/` | IPPO trial dirs (created on first IPPO run) |
+| `logs/tensorboard/` | Per-iteration scalars (reward, KL, entropy, value loss, explained variance) |
+| `metrics/` | Evaluation CSVs and PNG plots produced by `evaluate.py` and `compare_baseline.py` |
+
+Checkpoints are saved every 50 iterations and the 5 most recent are kept (configurable via `keep_checkpoints_num` in the config).
+
+## Reproducibility
+
+- Random seed defaults to **42** across NumPy, PyTorch, and SUMO.
+- Override with `--seed` on `train_mappo.py`, `train_ippo.py`, `evaluate.py`, and `compare_baseline.py`.
+- The Semester-1 result (98.5% reward improvement, converged at −26.28 ± 0.61 over iterations 82–101) was produced with `mappo_config.yaml`. To reproduce that exact run, use the v1 config — not v2.
+
+## See also
+
+- `../CLAUDE.md` — research methodology, Semester-2 plan, and full implementation reference
+- `tests/` — environment and edge-connectivity validators
+- `docs/` — additional design notes

@@ -172,26 +172,28 @@ Normalization constants:
 
 *Critic Network (Centralized):*
 - Input: 280 dim (4 agents × 70 dim, global state)
-- Hidden 1: 256 units, ReLU (orthogonal init)
-- Hidden 2: 128 units, ReLU (orthogonal init)
-- Hidden 3: 64 units, ReLU (orthogonal init)
+- Hidden 1: 512 units, ReLU (orthogonal init)
+- Hidden 2: 256 units, ReLU (orthogonal init)
+- Hidden 3: 128 units, ReLU (orthogonal init)
 - Output: 1 unit, Linear (value estimate)
 - Value normalization enabled (running mean/std, momentum=0.99)
 
+Actor activation is configurable via `actor_activation` in the model config (`models/mappo_model.py`); v2 uses Tanh.
+
 *All 4 agents share a single policy ("shared_policy") — parameter sharing.*
 
-**MAPPO Hyperparameters (from configs/mappo_config.yaml):**
+**MAPPO Hyperparameters (from configs/mappo_config_v2.yaml — current canonical MAPPO):**
 ```python
 {
-    "lr": 3e-4,                    # Learning rate
+    "lr": 5e-4,                    # Learning rate (v2; v1 was 4e-4)
     "gamma": 0.99,                 # Discount factor
     "lambda_": 0.95,               # GAE lambda
     "sgd_minibatch_size": 4096,
     "train_batch_size": 32768,
-    "num_sgd_iter": 10,            # Epochs per update
+    "num_sgd_iter": 15,            # Epochs per update
     "clip_param": 0.2,             # PPO clip
     "vf_clip_param": 10.0,
-    "grad_clip": 0.5,
+    "grad_clip": 1.0,              # v2; v1 was 0.5
     "entropy_coeff": 0.02,
     "vf_loss_coeff": 1.0,
     "num_rollout_workers": 3,
@@ -202,9 +204,29 @@ Normalization constants:
     "num_gpus_per_worker": 0,
     "vf_share_layers": false,      # Separate actor and critic networks
     "use_orthogonal_init": true,
-    "use_value_normalization": true
+    "use_value_normalization": true,
+    "observation_filter": "MeanStdFilter"  # Running mean/std on obs (universal across all configs)
 }
 ```
+
+**MAPPO config variants (RP-5/configs/):**
+- `mappo_config_v2.yaml` — **current canonical MAPPO** (improvised): lr=5e-4, grad_clip=1.0, critic=[512,256,128], richer per-junction `ns_edges`/`ew_edges` and an `edge_connectivity` block enabling directional neighbour pressure metrics.
+- `mappo_config.yaml` — Semester-1 frozen v1 baseline (lr=4e-4, grad_clip=0.5, critic=[256,128,64]). Kept for reproducing the Semester-1 results.
+- `mappo_baseline_paper.yaml` — Yu et al. (2021) "Surprising Effectiveness of PPO" reference hyperparameters, **Hanabi adopted preset** (Tables 11 + 18): lr=7e-4 (actor), epoch=15, mini-batch=1 → sgd_minibatch=train_batch_size=32768, clip=0.2 (policy + value), entropy=0.015, ReLU, MLP [512, 512] for both actor and critic, max_grad_norm=10.0. Hanabi is the only adopted MAPPO preset that uses MLP (no GRU), making it the closest paper-published config for our setup.
+- `ippo_config.yaml` — **IPPO comparator**: verbatim copy of `mappo_config_v2.yaml` except `custom_model: "ippo_decentralized"`. All hyperparameters (lr, gamma, λ, clip, batches, entropy, grad_clip, actor/critic hidden sizes) kept identical to MAPPO v2 so that **critic centralization is the only varied factor** between the two experiments.
+
+**IPPO scaffolding (Semester 2, Phase 1, Task 1.3):**
+- `RP-5/models/ippo_model.py` — `IPPOModelDecentralizedCritic`. Same actor as MAPPO; critic input is the agent's own 70-dim local observation (vs MAPPO's 280-dim concatenated global state). No `centralized_critic_postprocessing` hook — RLlib's default PPO postprocessing computes GAE on local obs. Registered as `"ippo_decentralized"`.
+- `RP-5/train_ippo.py` — IPPO training entry point. Mirrors `train_mappo.py` but with no `postprocess_fn` on the `PolicySpec`, model name swapped to `ippo_decentralized`, and Ray Tune experiment name `"ippo_traffic_control"` so checkpoints land in their own directory (`results/ippo_traffic_control/`). Defaults to `--config configs/ippo_config.yaml`.
+- Parameter sharing is preserved: all 4 agents still share a single `"shared_policy"` for IPPO, matching MAPPO setup. The only varied factor remains critic centralization.
+- `evaluate.py` and `compare_baseline.py` still hardcode the MAPPO model — they need an `--algo {mappo,ippo}` flag (or a parallel `evaluate_ippo.py`) before IPPO checkpoints can be evaluated.
+
+**What changed in v2 vs v1 (Semester-1 baseline):**
+- **Hyperparameters:** lr 4e-4 → 5e-4; grad_clip 0.5 → 1.0.
+- **Critic capacity:** [256, 128, 64] → [512, 256, 128] (≈2× wider first hidden).
+- **Per-junction directional metadata:** new `ns_edges` / `ew_edges` lists inside the `detectors:` block, separating north/south from east/west incoming edges.
+- **Neighbour edge connectivity:** new `edge_connectivity:` block giving the explicit outgoing/ingoing edges between every adjacent junction pair (J1↔J2, J1↔J3, J2↔J4, J3↔J4). Enables direction-aware neighbour pressure features.
+- **Configurable actor activation:** `models/mappo_model.py` now reads `actor_activation` from the config (was hard-coded to Tanh).
 
 ### Training Configuration
 
@@ -267,10 +289,12 @@ Outperformed both heuristic baselines:
 - Adjust traffic demand proportionally
 - Verify observation space: 70 dim/agent, 1,750 dim centralized critic
 
-**Task 1.3:** Implement Independent PPO (IPPO)
-- Individual rewards: Each agent optimizes only local metrics
-- Same architecture, hyperparameters as MAPPO
-- Fair comparison: Isolated variable = reward structure
+**Task 1.3:** Implement Independent PPO (IPPO) — *scaffolded*
+- Status: model (`models/ippo_model.py`), config (`configs/ippo_config.yaml`), and training entry point (`train_ippo.py`) all created. Ready to train.
+- Decentralized critic: each agent's value function sees only its own 70-dim local observation (vs MAPPO's 280-dim concatenated global state).
+- All hyperparameters identical to MAPPO v2 — **isolated variable = critic centralization** (not reward structure, to avoid confounding two factors).
+- Parameter sharing preserved: all 4 agents share a single `"shared_policy"`, matching MAPPO setup.
+- Outstanding: extend `evaluate.py` and `compare_baseline.py` with `--algo {mappo,ippo}` flag before IPPO checkpoints can be evaluated against the baselines.
 
 **Task 1.4:** Comparative evaluation
 - Metrics: Network waiting time, throughput, queue lengths
@@ -316,14 +340,19 @@ Applied/
 │   ├── fixed-cycles.py                # Fixed-time baseline controller
 │   ├── max-pressure.py                # Max-pressure baseline controller
 │   ├── validate_edges.py              # SUMO edge connectivity validator
+│   ├── train_ippo.py                  # IPPO training entry point (decentralized critic)
 │   ├── configs/
-│   │   └── mappo_config.yaml          # All hyperparameters and environment config
+│   │   ├── mappo_config_v2.yaml       # CURRENT MAPPO — improvised hyperparams + edge_connectivity
+│   │   ├── mappo_config.yaml          # Semester-1 frozen baseline (legacy)
+│   │   ├── mappo_baseline_paper.yaml  # Yu et al. (2021) paper-baseline comparator
+│   │   └── ippo_config.yaml           # IPPO comparator (decentralized critic; rest = MAPPO v2)
 │   ├── marl_env/
 │   │   ├── sumo_env.py                # SUMOTrafficEnv (RLlib MultiAgentEnv)
 │   │   ├── obs_builder.py             # MAPPOObservationBuilderV2 (70-dim)
 │   │   └── reward_function.py         # MAPPORewardFunction (5-component)
 │   ├── models/
-│   │   └── mappo_model.py             # MAPPOModelCentralizedCritic (custom RLlib model)
+│   │   ├── mappo_model.py             # MAPPOModelCentralizedCritic (custom RLlib model)
+│   │   └── ippo_model.py              # IPPOModelDecentralizedCritic (custom RLlib model)
 │   ├── sumo_network/
 │   │   ├── marl-proj.net.xml          # 2×2 road network topology
 │   │   ├── marl-proj.rou.xml          # Vehicle routes and demand
@@ -347,10 +376,15 @@ Applied/
 - **Config file:** `RP-5/sumo_network/marl-proj.sumocfg` — ties network + routes + params
 - **TL logic:** `RP-5/sumo_network/marl-proj.ttl.xml` — phase index → signal string mapping
 - **Detectors:** `RP-5/sumo_network/marl-proj.add.xml` — E2 lanearea detector definitions
-- **Config:** `RP-5/configs/mappo_config.yaml` — single source of truth for all hyperparameters
-- **Training:** `RP-5/train_mappo.py` — run with `python train_mappo.py --config configs/mappo_config.yaml`
-- **Evaluation:** `RP-5/evaluate.py` — run with `python evaluate.py --checkpoint <path>`
-- **Checkpoints:** `RP-5/results/mappo_traffic_control/PPO_sumo_traffic_<run_id>/`
+- **Config (current MAPPO):** `RP-5/configs/mappo_config_v2.yaml` — improvised hyperparameters + extended environment metadata (ns/ew edge breakdown, neighbour edge_connectivity)
+- **Config (legacy):** `RP-5/configs/mappo_config.yaml` — Semester-1 frozen baseline; kept to reproduce Semester-1 results
+- **Config (paper comparator):** `RP-5/configs/mappo_baseline_paper.yaml` — Yu et al. (2021) hyperparameters
+- **Config (IPPO comparator):** `RP-5/configs/ippo_config.yaml` — decentralized critic; all other hyperparameters identical to MAPPO v2
+- **Training (MAPPO):** `RP-5/train_mappo.py` — run with `python train_mappo.py --config configs/mappo_config_v2.yaml` (script default is still v1 — always pass `--config` explicitly)
+- **Training (IPPO):** `RP-5/train_ippo.py` — run with `python train_ippo.py --config configs/ippo_config.yaml`
+- **Evaluation:** `RP-5/evaluate.py` — run with `python evaluate.py --checkpoint <path>` (currently MAPPO-only; needs `--algo` flag for IPPO checkpoints)
+- **Checkpoints (MAPPO):** `RP-5/results/mappo_traffic_control/PPO_sumo_traffic_<run_id>/`
+- **Checkpoints (IPPO):** `RP-5/results/ippo_traffic_control/PPO_sumo_traffic_<run_id>/`
 
 ---
 
@@ -358,15 +392,20 @@ Applied/
 
 ### Training a New Model
 ```bash
-# Train from scratch
-python train_mappo.py --config configs/mappo_config.yaml --iterations 1000
+# Train the current (improvised) MAPPO from scratch
+python train_mappo.py --config configs/mappo_config_v2.yaml --iterations 1000
+
+# Train the IPPO comparator (decentralized critic)
+python train_ippo.py --config configs/ippo_config.yaml --iterations 1000
 
 # Resume from checkpoint
-python train_mappo.py --config configs/mappo_config.yaml --resume results/mappo_traffic_control/<run_id>/checkpoint_000101
+python train_mappo.py --config configs/mappo_config_v2.yaml --resume results/mappo_traffic_control/<run_id>/checkpoint_000101
 ```
 
+Note: `train_mappo.py` (and the other RP-5 scripts) currently still default to `mappo_config.yaml` (the v1 baseline). Always pass `--config configs/mappo_config_v2.yaml` explicitly to use the improvised MAPPO until the script defaults are flipped.
+
 Key workflow:
-1. Edit `configs/mappo_config.yaml` to set hyperparameters
+1. Edit `configs/mappo_config_v2.yaml` to set hyperparameters
 2. Run `train_mappo.py` — Ray initializes workers, each spawns a SUMO instance
 3. Each worker gets a unique TraCI port (PID-based, 10000–65000 range)
 4. TensorBoard: `tensorboard --logdir logs/tensorboard/`
@@ -543,7 +582,7 @@ git push
 - Comprehensive inline comments for MARL-specific logic
 
 ### Experimentation
-- One experiment = one config file (configs/mappo_config.yaml is the single source)
+- Each experiment = one config file under `configs/`. `mappo_config_v2.yaml` is the current canonical MAPPO; `mappo_config.yaml` and `mappo_baseline_paper.yaml` are kept for legacy / comparator runs.
 - Unique run names with timestamps (auto-generated by Ray Tune)
 - TensorBoard logs in `RP-5/logs/tensorboard/`
 - Checkpoints in `RP-5/results/mappo_traffic_control/`

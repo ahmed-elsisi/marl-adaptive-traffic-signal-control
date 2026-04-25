@@ -31,9 +31,12 @@ Investigate when and why cooperation emerges versus exploitation in multi-agent 
 - Goal: Establish baseline where cooperation naturally benefits all agents
 
 **Semester 2 (PLANNED):** Social Dilemma Testing
-- Phase 1: Scale traffic to 5×5 grid (25 intersections), compare the currently implemented MAPPO against baseline MAPPO (in research paper "The Surprising Effectiveness of PPO in Cooperative Multi-Agent Game") then the compare currently implemented MAPPO vs IPPO 
+- Phase 1: On the existing 2×2 grid, compare the currently implemented MAPPO against the paper baseline MAPPO (Yu et al. 2021, "The Surprising Effectiveness of PPO in Cooperative Multi-Agent Games") and against IPPO. **5×5 grid scaling is deprioritized** — see "Scope changes" below.
 - Phase 2: Implement social dilemma environment (Harvest/custom/predator-prey)
 - Phase 3: Cross-environment analysis of cooperation mechanisms
+
+**Scope changes (in-flight):**
+- The originally planned 5×5 grid scale-up has been **set aside**. The MAPPO/IPPO comparison and the social-dilemma phase are now the priority — extending the SUMO network to 25 intersections costs implementation and training time without changing the conclusions the project is trying to draw about cooperation emergence. If time remains after Phases 1 and 2 land, 5×5 can be revisited.
 
 ### The Spectrum Being Studied
 ```
@@ -285,10 +288,9 @@ Outperformed both heuristic baselines:
 - Apply the hyperparameters and configuration from the mentioned paper and compare against our currently implemented MAPPO
 - Output comparison metrics and analyze the performance
 
-**Task 1.2:** Scale environment 2×2 → 5×5 (25 intersections)
-- Maintain lane config, detector setup
-- Adjust traffic demand proportionally
-- Verify observation space: 70 dim/agent, 1,750 dim centralized critic
+**Task 1.2 (DEPRIORITIZED):** Scale environment 2×2 → 5×5 (25 intersections)
+- Originally planned but **set aside**: the MAPPO-vs-paper-baseline and MAPPO-vs-IPPO comparisons (Tasks 1.1, 1.3, 1.4) and the social-dilemma phase carry the research conclusions, and the scale-up is implementation-heavy without changing those conclusions.
+- If revisited later: maintain lane config and detector setup, adjust traffic demand proportionally, verify observation space (70 dim/agent, 1,750 dim centralized critic). The 5×5 SUMO network skeleton was prototyped earlier but reverted (see commits `fd14409`, `350242d`).
 
 **Task 1.3:** Implement Independent PPO (IPPO) — *scaffolded*
 - Status: model (`models/ippo_model.py`), config (`configs/ippo_config.yaml`), and training entry point (`train_ippo.py`) all created. Ready to train.
@@ -335,14 +337,16 @@ Outperformed both heuristic baselines:
 ```
 Applied/
 ├── CLAUDE.md                          # Project instructions (this file)
-├── RP-5/                              # Semester 1 implementation (2×2 grid)
-│   ├── train_mappo.py                 # Main training entry point
-│   ├── evaluate.py                    # MAPPO evaluation (arrival-tracking fix)
+├── RP-5/                              # Semester 1 (MAPPO) + Semester 2 Phase 1 (IPPO) — 2×2 grid
+│   ├── README.md                      # Code-level README for the RP-5 directory
+│   ├── train_mappo.py                 # MAPPO training entry point (centralized critic)
+│   ├── train_ippo.py                  # IPPO training entry point (decentralized critic)
+│   ├── evaluate.py                    # MAPPO evaluation (arrival-tracking fix; needs --algo for IPPO)
 │   ├── compare_baseline.py            # 3-way comparison: MAPPO vs Fixed vs MaxP
+│   ├── compare_mappo_variants.py      # MAPPO v1 vs v2 vs paper-baseline comparison
 │   ├── fixed-cycles.py                # Fixed-time baseline controller
 │   ├── max-pressure.py                # Max-pressure baseline controller
 │   ├── validate_edges.py              # SUMO edge connectivity validator
-│   ├── train_ippo.py                  # IPPO training entry point (decentralized critic)
 │   ├── configs/
 │   │   ├── mappo_config_v2.yaml       # CURRENT MAPPO — improvised hyperparams + edge_connectivity
 │   │   ├── mappo_config.yaml          # Semester-1 frozen baseline (legacy)
@@ -363,7 +367,8 @@ Applied/
 │   │   ├── marl-proj.add.xml          # Detectors (E2 lanearea sensors)
 │   │   └── marl-proj.nod.xml          # Node definitions
 │   ├── results/
-│   │   └── mappo_traffic_control/     # Ray Tune output (checkpoints + metrics)
+│   │   ├── mappo_traffic_control/     # MAPPO Ray Tune output (checkpoints + metrics)
+│   │   └── ippo_traffic_control/      # IPPO Ray Tune output (created on first IPPO run)
 │   ├── metrics/                       # Evaluation outputs (CSV + PNG plots)
 │   ├── logs/
 │   │   └── tensorboard/               # TensorBoard training logs
@@ -519,13 +524,13 @@ Outputs saved to `metrics/`:
 ### Technical Challenges
 
 **Challenge:** 5×5 grid computational cost
-- Solution: Maintain 3 workers, extend training time if needed
+- Resolution: deprioritized for Semester 2 (see Scope changes). If revisited, maintain 3 workers and extend training time as needed.
 
 **Challenge:** Social dilemma environment selection
 - Solution: Allocated Weeks 3-4 for evaluation, have fallback to traffic-only
 
 **Challenge:** Fair IPPO-MAPPO comparison
-- Solution: Keep identical hyperparameters, isolate reward structure variable
+- Solution: Keep all algorithm hyperparameters and the actor architecture identical; vary only the two MARL design choices that define the contrast — centralized vs decentralized critic, and shared/neighbour-coupled vs purely local reward. This is a "fully cooperative MARL package" vs "fully independent learners" comparison, not a single-variable critic ablation.
 
 ### Experimental Challenges
 
@@ -607,7 +612,6 @@ git push
 
 ### Semester 2 (Targets)
 - [ ] Compare against baseline MAPPO from "The Surprising Effectiveness of PPO in Cooperative Multi-Agent Games"
-- [ ] 5×5 traffic environment functional
 - [ ] IPPO baseline trained for comparison
 - [ ] Coordination value quantified (MAPPO - IPPO)
 - [ ] Social dilemma environment implemented
@@ -615,6 +619,7 @@ git push
 - [ ] Statistical analysis of cooperation mechanisms
 - [ ] Final thesis submitted
 - [ ] Defense presentation delivered
+- [~] 5×5 traffic environment functional — **deprioritized** (see Scope changes); revisit only if time remains after Phases 1–2.
 
 ---
 

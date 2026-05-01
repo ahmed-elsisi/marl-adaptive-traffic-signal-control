@@ -191,9 +191,9 @@ Actor activation is configurable via `actor_activation` in the model config (`mo
     "lr": 5e-4,                    # Learning rate (v2; v1 was 4e-4)
     "gamma": 0.99,                 # Discount factor
     "lambda_": 0.95,               # GAE lambda
-    "sgd_minibatch_size": 4096,
-    "train_batch_size": 32768,
-    "num_sgd_iter": 15,            # Epochs per update
+    "sgd_minibatch_size": 8192,    # = train_batch_size → 1 minibatch (full-batch update)
+    "train_batch_size": 8192,      # ~3 episodes/iter under complete_episodes
+    "num_sgd_iter": 10,            # Epochs per update
     "clip_param": 0.2,             # PPO clip
     "vf_clip_param": 10.0,
     "grad_clip": 1.0,              # v2; v1 was 0.5

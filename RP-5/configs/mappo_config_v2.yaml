@@ -114,9 +114,9 @@ mappo_config:
   lambda_: 0.95  # GAE lambda (research optimal: 0.95)
   
   # MAPPO-specific (CRITICAL for stability)
-  num_sgd_iter: 15  # 5-15 epochs
-  sgd_minibatch_size: 4096  # Minibatch size
-  train_batch_size: 32768  # Research optimal: 4000-40000 timesteps
+  num_sgd_iter: 10  # 5-15 epochs
+  sgd_minibatch_size: 8192  # Minibatch size
+  train_batch_size: 8192  # Research optimal: 4000-40000 timesteps
   
   # Clipping and regularization
   clip_param: 0.2  # PPO clip parameter
@@ -190,14 +190,14 @@ model_config:
 # Training Configuration
 training:
   num_iterations: 1000
-  checkpoint_freq: 50
+  checkpoint_freq: 25
   checkpoint_at_end: true
   keep_checkpoints_num: 5
   
   # Stopping criteria
   stop:
     training_iteration: 1000
-    episode_reward_mean: -5  # Target reward
+    episode_reward_mean: 10  # Target reward
   
   # Logging
   log_level: "INFO"

@@ -273,15 +273,16 @@ class SUMOTrafficEnv(MultiAgentEnv):
         This prevents port conflicts when using multiple rollout workers.
         """
         sumo_binary = "sumo-gui.exe" if self.use_gui else "sumo.exe"
-        episode_seed = self.sumo_seed_base + self.episode_seed_offset
-        
+        # SUMO seed is hardcoded to 42, not derived from sumo_seed_base + episode_seed_offset.
+        # Per-episode seed offsetting previously caused inconsistent demand sampling across
+        # workers, so we keep a single deterministic seed for the whole run.
         sumo_cmd = [
             sumo_binary,
             "-c", self.network_file.replace('.net.xml', '.sumocfg'),
             "--no-step-log",
             "--no-warnings",
             "--time-to-teleport", "-1",
-            "--seed", str(episode_seed),
+            "--seed", str(42),
             "--quit-on-end"
         ]
         

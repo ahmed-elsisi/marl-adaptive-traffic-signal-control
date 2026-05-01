@@ -77,8 +77,7 @@ def build_mappo_config(config: dict) -> PPOConfig:
         'min_green': config['env_config'].get('min_green', 10),
         'max_green': config['env_config'].get('max_green', 50),
         'sumo_seed': config['env_config'].get('sumo_seed', 42),
-        'enforce_min_green': config['env_config'].get('enforce_min_green', False),
-        'tl_program_id': config['env_config'].get('tl_program_id', '0'),
+        'enforce_min_green': config['env_config'].get('enforce_min_green', False),  # NEW!
         'edge_connectivity': config.get('edge_connectivity', {}),
     }
     
@@ -110,8 +109,7 @@ def build_mappo_config(config: dict) -> PPOConfig:
     model_config = {
         'custom_model': 'mappo_centralized',  # CHANGED!
         'custom_model_config': {
-            'num_agents': len(config['agents']),  # dynamic: 4 for 2x2, 25 for 5x5
-            'agent_ids': config['agents'],         # ordered list for AGENT_ORDER
+            'num_agents': 4,  # CRITICAL for global state construction
             'actor_hiddens': config['model_config']['custom_model_config'].get('actor_hiddens', [64, 64]),
             'critic_hiddens': config['model_config']['custom_model_config'].get('critic_hiddens', [256, 128]),
             'use_lstm': config['model_config']['custom_model_config'].get('use_lstm', False),
@@ -234,42 +232,24 @@ def train_mappo(
     # Training configuration
     training_config = config.get('training', {})
     
-    # Run config (shared between fresh start and resume)
-    run_config = air.RunConfig(
-        name="mappo_traffic_control",
-        storage_path=str(results_dir),
-        stop={
-            "training_iteration": num_iterations,
-        },
-        checkpoint_config=air.CheckpointConfig(
-            checkpoint_frequency=checkpoint_freq,
-            checkpoint_at_end=True,
-            num_to_keep=training_config.get('keep_checkpoints_num', 5),
+    # Run training
+    tuner = tune.Tuner(
+        "PPO",
+        param_space=algo_config.to_dict(),
+        run_config=air.RunConfig(
+            name="mappo_traffic_control",
+            storage_path=str(results_dir),
+            stop={
+                "training_iteration": num_iterations,
+            },
+            checkpoint_config=air.CheckpointConfig(
+                checkpoint_frequency=checkpoint_freq,
+                checkpoint_at_end=True,
+                num_to_keep=training_config.get('keep_checkpoints_num', 5),
+            ),
+            verbose=1,
         ),
-        verbose=1,
     )
-
-    if resume_path:
-        # Navigate from checkpoint_XXXXXX → trial dir → experiment dir (tuner.pkl lives here)
-        checkpoint = Path(resume_path)
-        if checkpoint.name.startswith('checkpoint_'):
-            experiment_dir = checkpoint.parent.parent
-        else:
-            experiment_dir = checkpoint.parent
-        print(f"Restoring experiment from: {experiment_dir}")
-        tuner = tune.Tuner.restore(
-            path=str(experiment_dir),
-            trainable="PPO",
-            resume_unfinished=True,
-            restart_errored=False,
-            param_space=algo_config.to_dict(),
-        )
-    else:
-        tuner = tune.Tuner(
-            "PPO",
-            param_space=algo_config.to_dict(),
-            run_config=run_config,
-        )
     
     # Execute training
     results = tuner.fit()
@@ -343,7 +323,7 @@ def main():
     parser.add_argument(
         "--config",
         type=str,
-        default="configs/mappo_config.yaml",
+        default="configs/mappo_config_v2.yaml",
         help="Path to configuration file"
     )
     parser.add_argument(
@@ -376,9 +356,6 @@ def main():
     # Set random seeds
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-    
-    # Set environment variable for libsumo (8x speedup)
-    os.environ['LIBSUMO_AS_TRACI'] = '1'
     
     # Train
     print("="*80)

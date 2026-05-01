@@ -434,6 +434,10 @@ Critical implementation note: `evaluate.py` uses `EnvWrapperWithMetrics` to hook
 SUMO's delta_time loop and capture arrivals every simulation second (not just every 5s
 RL step). This is required to correctly count ~1,200 vehicle completions per episode.
 
+Two further evaluation gotchas worth knowing (both fixed in `evaluate.py`):
+1. **`edge_connectivity` must be forwarded into `env_config`.** The v2 obs builder pulls neighbour outgoing/ingoing pressure features from `env_config['edge_connectivity']` and silently falls back to `{}` when missing. Forgetting this passthrough zeroes out 24 of the 70 obs dims at eval time — a ~34% distribution shift that makes the deterministic policy collapse onto one action (e.g. J1 stuck on EW).
+2. **`MeanStdFilter` must be applied manually at eval time.** With RLlib 2.35.0's PPO defaults (`enable_connectors=True`), `Algorithm.compute_single_action` only runs `ObsPreprocessorConnector` — it does **not** apply the running-mean/std filter. v2 trained with `observation_filter: "MeanStdFilter"`, so without manual application the policy receives raw obs at eval and collapses. `evaluate.py` retrieves `local_worker.filters["shared_policy"]` (via `algo.env_runner_group.local_env_runner` in 2.35) and calls `obs_filter(obs, update=False)` before each `compute_single_action`. It also prints the filter's running-stats `count` so you can confirm the checkpoint actually synced filter state.
+
 Outputs saved to `metrics/`:
 - `mappo_ep<N>_metrics.csv` — time-series (halts, arrivals, wait, speed)
 - `mappo_ep<N>_halting.png`, `*_arrivals_wait.png`, `*_per_agent.png`

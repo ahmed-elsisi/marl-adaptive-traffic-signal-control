@@ -12,27 +12,8 @@ import yaml
 import argparse
 import numpy as np
 import csv
-from pathlib import Path
 from typing import Dict, List
 from datetime import datetime
-
-# NumPy 2.x → 1.x checkpoint compatibility shim.
-# Checkpoints pickled under NumPy 2.x reference `numpy._core`; alias it to
-# `numpy.core` when we're running on NumPy 1.x so unpickling succeeds.
-# Must run before any pickle.loads that touches NumPy arrays (i.e., before
-# Ray's PPO.from_checkpoint).
-if not hasattr(np, '_core'):
-    import numpy.core as _np_core
-    sys.modules['numpy._core'] = _np_core
-    for _sub in ('multiarray', 'umath', '_methods', '_dtype_ctypes',
-                 'numeric', 'fromnumeric', 'arrayprint', '_internal',
-                 '_exceptions', 'overrides'):
-        try:
-            __import__(f'numpy.core.{_sub}')
-            sys.modules[f'numpy._core.{_sub}'] = sys.modules[f'numpy.core.{_sub}']
-        except ImportError:
-            pass
-
 import ray
 from ray import tune
 from ray.rllib.algorithms.ppo import PPO
@@ -42,14 +23,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-sys.path.append(str(PROJECT_ROOT))
-
-
-def _resolve_path(p: str) -> str:
-    """Resolve a path against RP-5/ (script dir) when it's relative."""
-    path = Path(p)
-    return str(path if path.is_absolute() else (PROJECT_ROOT / path))
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from marl_env.sumo_env import SUMOTrafficEnv
 from models.mappo_model import MAPPOModelCentralizedCritic
@@ -57,7 +31,7 @@ from models.mappo_model import MAPPOModelCentralizedCritic
 try:
     import libsumo as traci
     print("✓ Using libsumo (fast)")
-except (ImportError, SystemError, OSError):
+except ImportError:
     import traci
     print("✓ Using standard TraCI")
 
@@ -69,8 +43,8 @@ def ensure_results_dir(base_dir: str = "metrics") -> str:
 
 
 def load_config(config_path: str) -> Dict:
-    """Load configuration from YAML file (path resolved against RP-5/ if relative)."""
-    with open(_resolve_path(config_path), 'r') as f:
+    """Load configuration from YAML file."""
+    with open(config_path, 'r') as f:
         return yaml.safe_load(f)
 
 
@@ -370,35 +344,31 @@ def evaluate_mappo(
     checkpoint_path: str,
     num_episodes: int = 3,
     use_gui: bool = False,
-    config_path: str = 'configs/mappo_config_v2.yaml',
+    config_path: str = 'configs/mappo_config.yaml',
     results_dir: str = "metrics",
     seed: int = 42
 ) -> Dict:
     """
     Evaluate MAPPO with CORRECT arrival tracking.
-
+    
     Critical fix: Samples arrivals DURING delta_time loop.
     """
     results_dir = ensure_results_dir(results_dir)
     config = load_config(config_path)
     config['env_config']['use_gui'] = use_gui
     config['env_config']['sumo_seed'] = seed
-    # Resolve SUMO file paths against RP-5/ so the script works from any cwd
-    config['env_config']['network_file'] = _resolve_path(config['env_config']['network_file'])
-    config['env_config']['route_file'] = _resolve_path(config['env_config']['route_file'])
-
-    print(f"⚙️  Configuration: {config_path}")
+    
+    print(f"⚙️  Configuration:")
     print(f"  Seed: {seed}")
     print(f"  Delta time: {config['env_config'].get('delta_time', 5)}s")
-
+    
     # Add all required config
     config['env_config']['agents'] = config['agents']
     config['env_config']['network_topology'] = config['network_topology']
     config['env_config']['detectors'] = config['detectors']
     config['env_config']['normalization'] = config['normalization']
     config['env_config']['reward_config'] = config['reward_config']
-    if 'edge_connectivity' in config:
-        config['env_config']['edge_connectivity'] = config['edge_connectivity']
+    config['env_config']['edge_connectivity'] = config.get('edge_connectivity', {})
     
     # Initialize Ray
     if not ray.is_initialized():
@@ -426,6 +396,45 @@ def evaluate_mappo(
     except Exception as e:
         print(f"✗ Failed to load checkpoint: {e}")
         return None
+
+    # With enable_connectors=True (PPO default in RLlib 2.35), Algorithm.compute_single_action
+    # only invokes ObsPreprocessorConnector — it does NOT apply MeanStdFilter. If the policy
+    # was trained with observation_filter: "MeanStdFilter", we must apply it manually here,
+    # otherwise the policy receives raw obs and collapses to a single argmax under explore=False.
+    obs_filter = None
+    local_worker = None
+    for attr_chain in [
+        lambda a: a.env_runner_group.local_env_runner,
+        lambda a: a.workers.local_worker(),
+        lambda a: a.workers.local_env_runner,
+    ]:
+        try:
+            local_worker = attr_chain(algo)
+            if local_worker is not None:
+                break
+        except Exception:
+            continue
+
+    if local_worker is None:
+        print("⚠ Could not locate local worker on algo (tried env_runner_group / workers).")
+    else:
+        try:
+            candidate = local_worker.filters.get("shared_policy")
+            if candidate is not None and type(candidate).__name__ != "NoFilter":
+                obs_filter = candidate
+        except Exception as e:
+            print(f"⚠ Could not retrieve obs filter from local worker: {e}")
+
+    if obs_filter is not None:
+        rs = getattr(obs_filter, "running_stats", None) or getattr(obs_filter, "rs", None)
+        n = getattr(rs, "num_pushes", None) if rs is not None else None
+        if n is None:
+            n = getattr(rs, "n", None) if rs is not None else None
+        print(f"✓ Obs filter: {type(obs_filter).__name__}, running_stats count={n}")
+        if n in (None, 0):
+            print("⚠ Filter has no accumulated stats — checkpoint may not have synced filter state.")
+    else:
+        print("ℹ No MeanStdFilter detected; observations passed through raw.")
     
     episode_rewards = []
     episode_stats = []
@@ -457,8 +466,12 @@ def evaluate_mappo(
             # Get actions
             actions = {}
             for agent_id in env.agent_ids:
+                agent_obs = obs[agent_id]
+                # Manually apply MeanStdFilter (skipped by connector-enabled compute_single_action)
+                if obs_filter is not None:
+                    agent_obs = obs_filter(agent_obs, update=False)
                 action = algo.compute_single_action(
-                    obs[agent_id],
+                    agent_obs,
                     policy_id="shared_policy",
                     explore=False
                 )

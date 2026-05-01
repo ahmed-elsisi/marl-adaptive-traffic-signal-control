@@ -151,7 +151,7 @@ mappo_config:
   num_gpus_per_worker: 0
   
   # Evaluation
-  evaluation_interval: 50
+  evaluation_interval: 10
   evaluation_duration: 10
   evaluation_duration_unit: "episodes"
   evaluation_config:

@@ -63,7 +63,7 @@ def run_mappo_evaluation(checkpoint_path: str, episodes: int = 1, use_gui: bool 
         checkpoint_path=checkpoint_path,
         num_episodes=episodes,
         use_gui=use_gui,
-        config_path='configs/mappo_config.yaml',
+        config_path='configs/mappo_config_v2.yaml',
         results_dir=results_dir,
         seed=42  # CRITICAL: Match baseline seed for fair comparison
     )

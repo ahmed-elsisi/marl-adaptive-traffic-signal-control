@@ -19,6 +19,7 @@ env/
 
 # Ray / RLlib training outputs (large checkpoints)
 RP-5/results/
+RP-5/legacy_results/
 
 # Old/copy metrics
 RP-5/metrics - Copy/

@@ -83,6 +83,10 @@ class SUMOTrafficEnv(MultiAgentEnv):
 
         # Optional min-green enforcement
         self.enforce_min_green = env_config.get('enforce_min_green', False)
+
+        # All-red clearance between phase changes only (no clearance on hold).
+        self.min_red = int(env_config.get('min_red', 1))
+        self.enforce_min_red = env_config.get('enforce_min_red', True)
         
         pid = os.getpid()
         # Use PID to generate unique port in range 10000-65000
@@ -310,35 +314,77 @@ class SUMOTrafficEnv(MultiAgentEnv):
                 else:
                     raise RuntimeError(f"Failed to start SUMO after {max_retries} attempts: {e}")
             
-    def _apply_actions(self, action_dict: Dict[str, int]):
+    def _apply_actions(self, action_dict: Dict[str, int], on_sim_step=None):
         """
         Apply traffic signal actions using phase indices (NO min-green enforcement).
-        
+
         Agent learns optimal timing on its own.
-        
+
         ACTION MAPPING:
         - Action 0 → Phase 0: NS through + right turns
         - Action 1 → Phase 6: NS left turns
         - Action 2 → Phase 2: EW through + right turns
         - Action 3 → Phase 4: EW left turns
+
+        If ``self.enforce_min_red`` is True, agents whose target phase differs
+        from the current phase get an all-red clearance of ``self.min_red``
+        simulation seconds *before* the new phase is set. Agents whose action
+        is a no-change keep their current phase and skip clearance.
+        ``on_sim_step`` is an optional callable invoked after each clearance
+        ``simulationStep`` so callers (e.g. evaluate.py's metrics wrapper)
+        can sample arrivals that happen during the clearance window.
         """
-        current_time = traci.simulation.getTime()
-        
+        # Identify which agents are actually changing phase
+        changing = {}
+        for agent_id, action in action_dict.items():
+            new_phase = self.ACTION_TO_PHASE.get(action, 0)
+            current_phase = self.current_phases.get(agent_id, 0)
+            if new_phase != current_phase:
+                changing[agent_id] = new_phase
+
+        # All-red clearance only for agents that are actually changing phase.
+        # NOTE: setRedYellowGreenState replaces the TL's active program with a
+        # single-phase "online" program, so we must capture each TL's programID
+        # beforehand and restore it afterwards — otherwise the subsequent
+        # setPhase(idx) call fails with "phase index N is not in [0,0]".
+        if changing and self.enforce_min_red and self.min_red > 0:
+            saved_programs = {}
+            for agent_id in changing:
+                try:
+                    saved_programs[agent_id] = traci.trafficlight.getProgram(agent_id)
+                    state_len = len(traci.trafficlight.getRedYellowGreenState(agent_id))
+                    traci.trafficlight.setRedYellowGreenState(agent_id, "r" * state_len)
+                    traci.trafficlight.setPhaseDuration(agent_id, 1000.0)
+                except Exception as e:
+                    print(f"Error setting all-red for {agent_id}: {e}")
+
+            for _ in range(self.min_red):
+                traci.simulationStep()
+                if on_sim_step is not None:
+                    on_sim_step()
+
+            # Restore each TL's original program so setPhase() can address
+            # the full phase index range again.
+            for agent_id, program_id in saved_programs.items():
+                try:
+                    traci.trafficlight.setProgram(agent_id, program_id)
+                except Exception as e:
+                    print(f"Error restoring program {program_id} for {agent_id}: {e}")
+
+        # Set final phases — record phase_start_times AFTER clearance so
+        # elapsed_phase_time reflects only time spent in the new green
+        final_time = traci.simulation.getTime()
         for agent_id, action in action_dict.items():
             try:
-                # Map action to phase index
                 new_phase = self.ACTION_TO_PHASE.get(action, 0)
                 current_phase = self.current_phases.get(agent_id, 0)
-                
-                # Track phase changes
+
                 if new_phase != current_phase:
                     self.current_phases[agent_id] = new_phase
-                    self.phase_start_times[agent_id] = current_time
-                
-                # Set phase with long duration (prevents auto-advance)
+                    self.phase_start_times[agent_id] = final_time
+
                 traci.trafficlight.setPhase(agent_id, new_phase)
                 traci.trafficlight.setPhaseDuration(agent_id, 1000.0)
-                
             except Exception as e:
                 print(f"Error applying action for {agent_id}: {e}")
     

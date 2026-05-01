@@ -20,6 +20,11 @@ env_config:
   # true: Enforces 10s minimum green time
   enforce_min_green: false
 
+  # All-red clearance applied ONLY when an agent actually changes phase.
+  # No clearance is added on a hold (no-change) action.
+  enforce_min_red: true
+  min_red: 1
+
 # Agent Configuration
 agents:
   - "J1"

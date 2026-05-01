@@ -79,8 +79,12 @@ class EnvWrapperWithMetrics:
             self.metrics.track_action(agent_id, action)
         
         # Apply actions (this sets phases, handles yellow time, etc.)
-        self.env._apply_actions(action_dict)
-        
+        # Pass arrival-sampling callback so any min_red clearance steps are also sampled.
+        self.env._apply_actions(
+            action_dict,
+            on_sim_step=self.metrics.sample_arrivals_this_step,
+        )
+
         # CRITICAL FIX: Run simulation and collect metrics DURING loop
         for _ in range(self.env.delta_time):
             traci.simulationStep()

@@ -47,7 +47,7 @@ from evaluate import MetricsCollector, EnvWrapperWithMetrics, load_config
 try:
     import libsumo as traci
     print("Using libsumo")
-except (ImportError, SystemError, OSError):
+except ImportError:
     import traci
     print("Using standard TraCI")
 

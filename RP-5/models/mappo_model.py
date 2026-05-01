@@ -43,12 +43,10 @@ class MAPPOModelCentralizedCritic(TorchModelV2, nn.Module):
         # Dimensions
         self.local_obs_dim = 70  # Enhanced obs from obs_builder_v2
         self.num_agents = custom_config.get('num_agents', 4)
-        self.global_state_dim = self.local_obs_dim * self.num_agents  # 70 × num_agents
-        self.agent_ids = custom_config.get('agent_ids', ["J1", "J2", "J3", "J4"])
+        self.global_state_dim = self.local_obs_dim * self.num_agents  # 280
         
         # Network configs
         self.actor_hiddens = custom_config.get('actor_hiddens', [64, 64])
-        self.actor_activation = custom_config.get('actor_activation', 'tanh')
         self.critic_hiddens = custom_config.get('critic_hiddens', [256, 128])
         self.critic_activation = custom_config.get('critic_activation', 'relu')
         self.use_orthogonal_init = custom_config.get('use_orthogonal_init', True)
@@ -98,14 +96,13 @@ class MAPPOModelCentralizedCritic(TorchModelV2, nn.Module):
             start_idx = 0
         
         # Hidden layers
-        act_fn = nn.Tanh if self.actor_activation == 'tanh' else nn.ReLU
         for i in range(start_idx, len(self.actor_hiddens)):
             hidden_size = self.actor_hiddens[i]
             layer = nn.Linear(prev_size, hidden_size)
             if self.use_orthogonal_init:
                 nn.init.orthogonal_(layer.weight, gain=np.sqrt(5/3))
                 nn.init.constant_(layer.bias, 0)
-            layers.extend([layer, act_fn()])
+            layers.extend([layer, nn.Tanh()])
             prev_size = hidden_size
         
         # Output layer
@@ -267,11 +264,8 @@ def centralized_critic_postprocessing(
     """
     import torch
     
-    # CRITICAL: Define fixed global agent order (dynamic for any grid size)
-    try:
-        AGENT_ORDER = policy.model.agent_ids
-    except AttributeError:
-        AGENT_ORDER = ["J1", "J2", "J3", "J4"]  # fallback for 2x2
+    # CRITICAL: Define fixed global agent order
+    AGENT_ORDER = ["J1", "J2", "J3", "J4"]
     
     # Get this agent's observations (batch_size, 70)
     local_obs = sample_batch['obs']
@@ -282,11 +276,10 @@ def centralized_critic_postprocessing(
     if not other_agent_batches or len(other_agent_batches) == 0:
         # EVALUATION MODE: No other agents available
         # Use local obs only (will be detected by model's non_zero_ratio check)
-        # Pad to global_state_dim but mark as incomplete by keeping it sparse
+        # Pad to 280-dim but mark as incomplete by keeping it sparse
         batch_size = local_obs.shape[0]
-        global_state_dim = len(AGENT_ORDER) * 70
         global_state = torch.zeros(
-            batch_size, global_state_dim,
+            batch_size, 280,
             dtype=local_obs.dtype,
             device=local_obs.device
         )
@@ -331,9 +324,8 @@ def centralized_critic_postprocessing(
     global_state = torch.cat(all_agent_obs, dim=-1)
     
     # Verify dimensions
-    expected_dim = len(AGENT_ORDER) * 70
-    assert global_state.shape[-1] == expected_dim, \
-        f"Global state should be {expected_dim}-dim, got {global_state.shape[-1]}"
+    assert global_state.shape[-1] == 280, \
+        f"Global state should be 280-dim, got {global_state.shape[-1]}"
     
     # Add global state to batch
     sample_batch['global_state'] = global_state

@@ -29,13 +29,18 @@
 #   actor_activation:  tanh  → relu
 #   critic_activation: relu  → relu (already matched)
 #
-# WHAT IS IDENTICAL (ensures fair comparison — only algorithm changes):
-#   Environment, SUMO network, reward function, observation space, seed,
+# WHAT IS IDENTICAL TO mappo_config_v2.yaml (env-side, ensures the comparison
+# isolates algorithm changes only):
+#   SUMO network, reward function, observation space, seed,
+#   ns_edges / ew_edges per junction, edge_connectivity block (so the obs
+#   builder produces the same 70-dim features at training and eval time),
+#   enforce_min_red=true / min_red=3 (all-red clearance on phase changes),
 #   train_batch_size, sgd_minibatch_size (= train_batch_size, paper mini-batch=1),
 #   clip_param, vf_clip_param, vf_loss_coeff, value normalization,
 #   orthogonal init, number of workers, training iterations.
 
-# ── Environment Configuration (IDENTICAL to mappo_config.yaml) ───────────────
+# ── Environment Configuration (IDENTICAL to mappo_config_v2.yaml) ─────────────
+# All env knobs mirror v2 so the comparison isolates algorithm differences only.
 env_config:
   network_file: "sumo_network/marl-proj.net.xml"
   route_file: "sumo_network/marl-proj.rou.xml"
@@ -48,6 +53,11 @@ env_config:
   sumo_seed: 42
   sumo_warnings: false
   enforce_min_green: false
+
+  # All-red clearance applied ONLY when an agent actually changes phase.
+  # No clearance is added on a hold (no-change) action.
+  enforce_min_red: true
+  min_red: 3
 
 # ── Agent Configuration (IDENTICAL) ──────────────────────────────────────────
 agents:
@@ -63,20 +73,60 @@ network_topology:
   J3: ["J1", "J4"]
   J4: ["J2", "J3"]
 
-# ── Detector Configuration (IDENTICAL) ───────────────────────────────────────
+# ── Detector Configuration (IDENTICAL to v2) ─────────────────────────────────
 detectors:
   J1:
     incoming_edges: ["-E6", "E0", "E16", "-E1"]
-    movements: [0, 1, 2]
+    movements: [0, 1, 2]  # right, straight, left
+    ns_edges: ["-E6", "E0"]    # N and S incoming
+    ew_edges: ["E16", "-E1"]   # W and E incoming
   J2:
     incoming_edges: ["E1", "-E7", "-E11", "-E10"]
     movements: [0, 1, 2]
+    ns_edges: ["E1", "-E7"]
+    ew_edges: ["-E11", "-E10"]
   J3:
     incoming_edges: ["-E17", "-E16", "-E18", "-E15"]
     movements: [0, 1, 2]
+    ns_edges: ["-E17", "-E16"]
+    ew_edges: ["-E18", "-E15"]
   J4:
     incoming_edges: ["E15", "E11", "-E8", "-E9"]
     movements: [0, 1, 2]
+    ns_edges: ["E15", "E11"]
+    ew_edges: ["-E8", "-E9"]
+
+# ── Edge Connectivity (IDENTICAL to v2) ──────────────────────────────────────
+# Required for the obs builder's neighbour outgoing/ingoing pressure features.
+edge_connectivity:
+  J1:
+    J2:
+      outgoing: ["-E1"]   # J2→J1
+      ingoing:  ["E1"]    # J1→J2
+    J3:
+      outgoing: ["E16"]   # J3→J1
+      ingoing:  ["-E16"]  # J1→J3
+  J2:
+    J1:
+      outgoing: ["E1"]    # J1→J2
+      ingoing:  ["-E1"]   # J2→J1
+    J4:
+      outgoing: ["-E11"]  # J4→J2
+      ingoing:  ["E11"]   # J2→J4
+  J3:
+    J1:
+      outgoing: ["-E16"]  # J1→J3
+      ingoing:  ["E16"]   # J3→J1
+    J4:
+      outgoing: ["-E15"]  # J4→J3
+      ingoing:  ["E15"]   # J3→J4
+  J4:
+    J2:
+      outgoing: ["E11"]   # J2→J4
+      ingoing:  ["-E11"]  # J4→J2
+    J3:
+      outgoing: ["E15"]   # J3→J4
+      ingoing:  ["-E15"]  # J4→J3
 
 # ── Normalization Configuration (IDENTICAL) ───────────────────────────────────
 normalization:

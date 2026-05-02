@@ -192,8 +192,8 @@ Actor activation is configurable via `actor_activation` in the model config (`mo
     "lr": 5e-4,                    # Learning rate (v2; v1 was 4e-4)
     "gamma": 0.99,                 # Discount factor
     "lambda_": 0.95,               # GAE lambda
-    "sgd_minibatch_size": 8192,    # = train_batch_size → 1 minibatch (full-batch update)
-    "train_batch_size": 8192,      # ~3 episodes/iter under complete_episodes
+    "sgd_minibatch_size": 32768,   # = train_batch_size → 1 minibatch (full-batch update, paper-faithful)
+    "train_batch_size": 32768,     # ~12 episodes/iter under complete_episodes (≈2,880 samples/episode × 4 agents)
     "num_sgd_iter": 10,            # Epochs per update
     "clip_param": 0.2,             # PPO clip
     "vf_clip_param": 10.0,
@@ -239,8 +239,8 @@ Actor activation is configurable via `actor_activation` in the model config (`mo
 - **Config Target:** 1000 iterations (stopping criteria: `episode_reward_mean: -5`)
 - **Duration:** ~28 hours (101 iterations)
 - **Parallel Workers:** 3 rollout workers + 1 training process (GPU)
-- **Evaluation:** Every 50 iterations (10 episodes, deterministic)
-- **Checkpointing:** Every 50 iterations, keep 5 most recent
+- **Evaluation:** Every 10 iterations (10 episodes, deterministic) — applies to all configs
+- **Checkpointing:** Every 25 iterations in `mappo_config_v2.yaml`, every 50 elsewhere; keep 5 most recent
 - **Results saved to:** `RP-5/results/mappo_traffic_control/`
 - **TensorBoard logs:** `RP-5/logs/tensorboard/`
 - **Seed:** 42 (NumPy, PyTorch, SUMO)

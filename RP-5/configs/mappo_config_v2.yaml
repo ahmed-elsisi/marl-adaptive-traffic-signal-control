@@ -120,8 +120,8 @@ mappo_config:
   
   # MAPPO-specific (CRITICAL for stability)
   num_sgd_iter: 10  # 5-15 epochs
-  sgd_minibatch_size: 8192  # Minibatch size
-  train_batch_size: 8192  # Research optimal: 4000-40000 timesteps
+  sgd_minibatch_size: 32768  # Minibatch size
+  train_batch_size: 32768  # Research optimal: 4000-40000 timesteps
   
   # Clipping and regularization
   clip_param: 0.2  # PPO clip parameter

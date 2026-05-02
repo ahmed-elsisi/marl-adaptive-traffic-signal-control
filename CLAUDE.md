@@ -143,6 +143,7 @@ A = {
 }
 Right turns are permissive for all phases.
 enforce_min_green: false (agents learn optimal timing autonomously)
+enforce_min_red: true, min_red: 3 (v2) / 1 (legacy default) — see "Min-Red Clearance" below
 ```
 
 **Reward Function (Multi-component):**
@@ -673,6 +674,35 @@ Phases 1, 3, 5, 7 are yellow transitions (handled automatically by SUMO).
 ### Min-Green Enforcement
 `enforce_min_green: false` in config (default). Agents freely choose any phase each step.
 If set to `true`, phase changes are blocked until 10s have elapsed (hard constraint).
+
+### Min-Red Clearance (between phase changes only)
+`enforce_min_red: true`, `min_red: 3` in `mappo_config_v2.yaml` (current canonical MAPPO).
+`min_red: 1` in `ippo_config.yaml` (kept lower while IPPO scaffolding is exercised; align
+to 3 before the formal IPPO comparison run so the env stays identical to MAPPO's). The v1
+baseline (`mappo_config.yaml`) doesn't specify either knob and inherits the env defaults
+(`enforce_min_red=True`, `min_red=1`); set `enforce_min_red: false` there to reproduce the
+Semester-1 result without clearance.
+
+Implemented in `marl_env/sumo_env.py:_apply_actions`. When at least one agent's target
+phase differs from its current phase, the env:
+1. Captures each changing TL's `programID` via `getProgram()`.
+2. Calls `setRedYellowGreenState(agent_id, "r" * len(state))` to drop those signals to all-red.
+3. Runs `min_red` `simulationStep()`s (with an optional `on_sim_step` callback so eval-time
+   metric collectors don't lose arrivals during clearance).
+4. Calls `setProgram(agent_id, programID)` to restore the original 8-phase program. This step
+   is mandatory: `setRedYellowGreenState` replaces the active program with a single-phase
+   "online" program, and the next `setPhase(idx)` would raise
+   `phase index N is not in [0,0]`.
+5. Sets the new green via `setPhase()` and records `phase_start_times` from the post-
+   clearance time so `elapsed_phase_time` reflects only time spent in the new green.
+
+Agents whose action is a hold (no-change) skip steps 1–4 entirely — clearance is applied
+only on actual phase transitions.
+
+Timing implication: a tick where any agent changes phase consumes `delta_time + min_red`
+sim seconds (8 with `delta_time=5, min_red=3`); all-hold ticks stay at 5. Episode
+termination is `sim_time >= num_seconds`, so each episode still spans 3,600 sim seconds —
+just with slightly fewer total RL decisions when phase changes are frequent.
 
 ---
 

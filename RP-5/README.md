@@ -116,11 +116,12 @@ See `../CLAUDE.md` for the full hyperparameter table and the detailed rationale 
 ## Environment specifics (2×2 grid)
 
 - **Junctions**: `J1` (top-left), `J2` (top-right), `J3` (bottom-left), `J4` (bottom-right)
-- **Episode**: 3,600 simulation seconds, action every 5s (720 decisions/episode)
+- **Episode**: 3,600 simulation seconds, action every 5s (~720 decisions/episode; slightly fewer when min-red clearance fires — see below)
 - **Observation**: 70-dim per agent — 28 local features + 21 features × 2 neighbours
 - **Action space**: discrete, 4 phases (NS through+right, NS left, EW through+right, EW left)
 - **Reward**: `r = -1.0·W -0.25·Q + 0.1·T - 0.4·P - 0.5·N`, clipped to `[-3.0, 1.0]`
   - W: cumulative waiting time, Q: queue length, T: throughput, P: positive pressure, N: neighbour pressure
+- **Min-red clearance**: when an agent's action changes its phase, the env drops that junction to all-red for `min_red` simulation seconds before setting the new green; agents that hold their phase skip the clearance. v2 uses `min_red: 3`, IPPO config currently `min_red: 1`. Toggle with `enforce_min_red: false` to reproduce pre-clearance behaviour. Implementation in `marl_env/sumo_env.py:_apply_actions` — see `../CLAUDE.md` for the full sequence and the `setProgram` restore step.
 
 The full SUMO network is in `sumo_network/marl-proj.*` and is committed to the repo — there is no setup script to run before training.
 

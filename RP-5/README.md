@@ -121,7 +121,7 @@ See `../CLAUDE.md` for the full hyperparameter table and the detailed rationale 
 - **Action space**: discrete, 4 phases (NS through+right, NS left, EW through+right, EW left)
 - **Reward**: `r = -1.0·W -0.25·Q + 0.1·T - 0.4·P - 0.5·N`, clipped to `[-3.0, 1.0]`
   - W: cumulative waiting time, Q: queue length, T: throughput, P: positive pressure, N: neighbour pressure
-- **Min-red clearance**: when an agent's action changes its phase, the env drops that junction to all-red for `min_red` simulation seconds before setting the new green; agents that hold their phase skip the clearance. v2 uses `min_red: 3`, IPPO config currently `min_red: 1`. Toggle with `enforce_min_red: false` to reproduce pre-clearance behaviour. Implementation in `marl_env/sumo_env.py:_apply_actions` — see `../CLAUDE.md` for the full sequence and the `setProgram` restore step.
+- **Min-red clearance**: when an agent's action changes its phase, the env drops that junction to all-red for `min_red` simulation seconds before setting the new green; agents that hold their phase skip the clearance. Both `mappo_config_v2.yaml` and `ippo_config.yaml` use `min_red: 3` (kept in sync so MAPPO-vs-IPPO compares algorithms, not envs). Toggle with `enforce_min_red: false` to reproduce pre-clearance behaviour. Implementation in `marl_env/sumo_env.py:_apply_actions` — see `../CLAUDE.md` for the full sequence and the `setProgram` restore step.
 
 The full SUMO network is in `sumo_network/marl-proj.*` and is committed to the repo — there is no setup script to run before training.
 

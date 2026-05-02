@@ -143,7 +143,7 @@ A = {
 }
 Right turns are permissive for all phases.
 enforce_min_green: false (agents learn optimal timing autonomously)
-enforce_min_red: true, min_red: 3 (v2) / 1 (legacy default) — see "Min-Red Clearance" below
+enforce_min_red: true, min_red: 3 (mappo_config_v2.yaml + ippo_config.yaml) — see "Min-Red Clearance" below
 ```
 
 **Reward Function (Multi-component):**
@@ -676,12 +676,11 @@ Phases 1, 3, 5, 7 are yellow transitions (handled automatically by SUMO).
 If set to `true`, phase changes are blocked until 10s have elapsed (hard constraint).
 
 ### Min-Red Clearance (between phase changes only)
-`enforce_min_red: true`, `min_red: 3` in `mappo_config_v2.yaml` (current canonical MAPPO).
-`min_red: 1` in `ippo_config.yaml` (kept lower while IPPO scaffolding is exercised; align
-to 3 before the formal IPPO comparison run so the env stays identical to MAPPO's). The v1
-baseline (`mappo_config.yaml`) doesn't specify either knob and inherits the env defaults
-(`enforce_min_red=True`, `min_red=1`); set `enforce_min_red: false` there to reproduce the
-Semester-1 result without clearance.
+`enforce_min_red: true`, `min_red: 3` in both `mappo_config_v2.yaml` (current canonical
+MAPPO) and `ippo_config.yaml` — they are kept in sync so the MAPPO-vs-IPPO comparison
+isolates the algorithm, not the env. The v1 baseline (`mappo_config.yaml`) doesn't specify
+either knob and inherits the env defaults (`enforce_min_red=True`, `min_red=1`); set
+`enforce_min_red: false` there to reproduce the Semester-1 result without clearance.
 
 Implemented in `marl_env/sumo_env.py:_apply_actions`. When at least one agent's target
 phase differs from its current phase, the env:
@@ -702,7 +701,10 @@ only on actual phase transitions.
 Timing implication: a tick where any agent changes phase consumes `delta_time + min_red`
 sim seconds (8 with `delta_time=5, min_red=3`); all-hold ticks stay at 5. Episode
 termination is `sim_time >= num_seconds`, so each episode still spans 3,600 sim seconds —
-just with slightly fewer total RL decisions when phase changes are frequent.
+just with slightly fewer total RL decisions when phase changes are frequent. Note that the
+larger `min_red=3` (vs the env default of 1) materially shrinks per-episode sample counts
+when policies change phase often, which can shift the effective `train_batch_size` /
+`rollout_fragment_length` ratio.
 
 ---
 

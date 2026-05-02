@@ -23,7 +23,7 @@ env_config:
   # All-red clearance applied ONLY when an agent actually changes phase.
   # No clearance is added on a hold (no-change) action.
   enforce_min_red: true
-  min_red: 1
+  min_red: 3
 
 # Agent Configuration
 agents:

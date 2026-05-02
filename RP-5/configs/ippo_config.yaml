@@ -127,9 +127,9 @@ mappo_config:
   lambda_: 0.95  # GAE lambda (research optimal: 0.95)
 
   # PPO update knobs
-  num_sgd_iter: 10  # 5-15 epochs
-  sgd_minibatch_size: 8192  # Minibatch size (= train_batch_size → 1 minibatch / full-batch update)
-  train_batch_size: 8192  # Research optimal: 4000-40000 timesteps
+  num_sgd_iter: 10  # 5-15 epochs (matches mappo_config_v2.yaml)
+  sgd_minibatch_size: 32768  # = train_batch_size → 1 minibatch / full-batch update
+  train_batch_size: 32768  # Research optimal: 4000-40000 timesteps
 
   # Clipping and regularization
   clip_param: 0.2  # PPO clip parameter

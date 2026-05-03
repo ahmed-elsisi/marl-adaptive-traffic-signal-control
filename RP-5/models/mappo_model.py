@@ -48,6 +48,7 @@ class MAPPOModelCentralizedCritic(TorchModelV2, nn.Module):
         # Network configs
         self.actor_hiddens = custom_config.get('actor_hiddens', [64, 64])
         self.critic_hiddens = custom_config.get('critic_hiddens', [256, 128])
+        self.actor_activation = custom_config.get('actor_activation', 'tanh')
         self.critic_activation = custom_config.get('critic_activation', 'relu')
         self.use_orthogonal_init = custom_config.get('use_orthogonal_init', True)
         self.orthogonal_gain = custom_config.get('orthogonal_gain', 0.01)
@@ -96,13 +97,15 @@ class MAPPOModelCentralizedCritic(TorchModelV2, nn.Module):
             start_idx = 0
         
         # Hidden layers
+        act_fn = nn.Tanh if self.actor_activation == 'tanh' else nn.ReLU
+        hidden_init_gain = np.sqrt(5/3) if self.actor_activation == 'tanh' else np.sqrt(2)
         for i in range(start_idx, len(self.actor_hiddens)):
             hidden_size = self.actor_hiddens[i]
             layer = nn.Linear(prev_size, hidden_size)
             if self.use_orthogonal_init:
-                nn.init.orthogonal_(layer.weight, gain=np.sqrt(5/3))
+                nn.init.orthogonal_(layer.weight, gain=hidden_init_gain)
                 nn.init.constant_(layer.bias, 0)
-            layers.extend([layer, nn.Tanh()])
+            layers.extend([layer, act_fn()])
             prev_size = hidden_size
         
         # Output layer

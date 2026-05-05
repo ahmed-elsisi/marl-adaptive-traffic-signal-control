@@ -66,6 +66,11 @@ def build_ippo_config(config: dict) -> PPOConfig:
         "max_green": config["env_config"].get("max_green", 50),
         "sumo_seed": config["env_config"].get("sumo_seed", 42),
         "enforce_min_green": config["env_config"].get("enforce_min_green", False),
+        # All-red clearance between phase changes. Defaults match SUMOTrafficEnv
+        # (enforce_min_red=True, min_red=1) so existing configs that don't
+        # declare these keys keep their previous behavior.
+        "enforce_min_red": config["env_config"].get("enforce_min_red", True),
+        "min_red": config["env_config"].get("min_red", 1),
         "tl_program_id": config["env_config"].get("tl_program_id", "0"),
         "edge_connectivity": config.get("edge_connectivity", {}),
     }
@@ -315,7 +320,9 @@ def main():
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    os.environ["LIBSUMO_AS_TRACI"] = "1"
+    # Force standard TraCI — libsumo fails to start on this setup. Matches
+    # train_mappo.py, which intentionally never sets LIBSUMO_AS_TRACI.
+    os.environ.pop("LIBSUMO_AS_TRACI", None)
 
     print("=" * 80)
     print("IPPO Training for Traffic Signal Control")

@@ -77,7 +77,12 @@ def build_mappo_config(config: dict) -> PPOConfig:
         'min_green': config['env_config'].get('min_green', 10),
         'max_green': config['env_config'].get('max_green', 50),
         'sumo_seed': config['env_config'].get('sumo_seed', 42),
-        'enforce_min_green': config['env_config'].get('enforce_min_green', False),  # NEW!
+        'enforce_min_green': config['env_config'].get('enforce_min_green', False),
+        # All-red clearance between phase changes. Defaults match SUMOTrafficEnv
+        # (enforce_min_red=True, min_red=1) so existing configs that don't
+        # declare these keys keep their previous behavior.
+        'enforce_min_red': config['env_config'].get('enforce_min_red', True),
+        'min_red': config['env_config'].get('min_red', 1),
         'edge_connectivity': config.get('edge_connectivity', {}),
     }
     

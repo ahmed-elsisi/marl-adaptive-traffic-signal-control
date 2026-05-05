@@ -676,11 +676,26 @@ Phases 1, 3, 5, 7 are yellow transitions (handled automatically by SUMO).
 If set to `true`, phase changes are blocked until 10s have elapsed (hard constraint).
 
 ### Min-Red Clearance (between phase changes only)
-`enforce_min_red: true`, `min_red: 3` in both `mappo_config_v2.yaml` (current canonical
-MAPPO) and `ippo_config.yaml` — they are kept in sync so the MAPPO-vs-IPPO comparison
-isolates the algorithm, not the env. The v1 baseline (`mappo_config.yaml`) doesn't specify
-either knob and inherits the env defaults (`enforce_min_red=True`, `min_red=1`); set
-`enforce_min_red: false` there to reproduce the Semester-1 result without clearance.
+`enforce_min_red: true`, `min_red: 3` in `mappo_config_v2.yaml`, `mappo_baseline_paper.yaml`
+and `ippo_config.yaml` — they are kept in sync so the MAPPO-vs-IPPO and v2-vs-paper
+comparisons isolate the algorithm, not the env. The v1 baseline (`mappo_config.yaml`)
+doesn't specify either knob and inherits the env defaults (`enforce_min_red=True`,
+`min_red=1`); set `enforce_min_red: false` there to reproduce the Semester-1 result
+without clearance.
+
+**Plumbing history (read carefully when comparing reference runs):** Until 2026-05-06,
+`train_mappo.py` and `train_ippo.py` did not thread `enforce_min_red`/`min_red` from the
+YAML's `env_config:` block into the env_config dict they pass to `SUMOTrafficEnv`. As a
+result, both reference runs (v2 `d4f9d` and paper_baseline `4acfd`) **trained at the env
+default `min_red=1`** even though their YAMLs declare `min_red=3`. Evaluation scripts
+(`evaluate.py`, `compare_baseline.py`, `compare_mappo_variants.py` after its 2026-05-05
+patch) all plumb min_red correctly, so eval runs use `min_red=3` — which means there is a
+small train/eval mismatch on those legacy checkpoints (extra 2 sim-sec of all-red per
+phase change at eval time vs train time). The training scripts were patched on 2026-05-06
+to thread both keys through, so all runs kicked off after that date will train at
+`min_red=3` as the YAMLs declare. The first IPPO run and the planned v2/paper_baseline
+re-runs will be the first set of post-patch reference data; do not directly compare their
+training curves to the legacy `d4f9d` / `4acfd` curves without flagging the env change.
 
 Implemented in `marl_env/sumo_env.py:_apply_actions`. When at least one agent's target
 phase differs from its current phase, the env:

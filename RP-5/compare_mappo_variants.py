@@ -98,6 +98,44 @@ def evaluate_variant(
     algo = PPO.from_checkpoint(checkpoint_path)
     print(f"  Checkpoint loaded.")
 
+    # With enable_connectors=True (PPO default in RLlib 2.35),
+    # Algorithm.compute_single_action does NOT apply MeanStdFilter — only the
+    # ObsPreprocessorConnector runs. v2 (and paper_baseline) train with
+    # observation_filter: "MeanStdFilter", so without manual application the
+    # deterministic policy receives raw obs and collapses to a single argmax.
+    obs_filter = None
+    local_worker = None
+    for attr_chain in [
+        lambda a: a.env_runner_group.local_env_runner,
+        lambda a: a.workers.local_worker(),
+        lambda a: a.workers.local_env_runner,
+    ]:
+        try:
+            local_worker = attr_chain(algo)
+            if local_worker is not None:
+                break
+        except Exception:
+            continue
+
+    if local_worker is not None:
+        try:
+            candidate = local_worker.filters.get("shared_policy")
+            if candidate is not None and type(candidate).__name__ != "NoFilter":
+                obs_filter = candidate
+        except Exception as e:
+            print(f"  ⚠ Could not retrieve obs filter: {e}")
+
+    if obs_filter is not None:
+        rs = getattr(obs_filter, "running_stats", None) or getattr(obs_filter, "rs", None)
+        n = getattr(rs, "num_pushes", None) if rs is not None else None
+        if n is None:
+            n = getattr(rs, "n", None) if rs is not None else None
+        print(f"  ✓ Obs filter: {type(obs_filter).__name__}, running_stats count={n}")
+        if n in (None, 0):
+            print("  ⚠ Filter has no accumulated stats — checkpoint may not have synced filter state.")
+    else:
+        print("  ℹ No MeanStdFilter detected; observations passed through raw.")
+
     all_times = None
     all_halts = []
     all_arrivals = []
@@ -118,12 +156,14 @@ def evaluate_variant(
         done = False
 
         while not done:
-            actions = {
-                a: algo.compute_single_action(
-                    obs[a], policy_id="shared_policy", explore=False
+            actions = {}
+            for a in env.agent_ids:
+                agent_obs = obs[a]
+                if obs_filter is not None:
+                    agent_obs = obs_filter(agent_obs, update=False)
+                actions[a] = algo.compute_single_action(
+                    agent_obs, policy_id="shared_policy", explore=False
                 )
-                for a in env.agent_ids
-            }
             obs, rewards, terminateds, _, _ = env.step(actions)
             for a in env.agent_ids:
                 ep_reward[a] += rewards[a]
@@ -342,8 +382,12 @@ def main():
                         help="Checkpoint path for variant B (paper baseline)")
     parser.add_argument("--label-b", default="Paper Baseline MAPPO",
                         help="Display label for variant B")
-    parser.add_argument("--config", default="configs/mappo_config.yaml",
-                        help="Environment config (same for both variants)")
+    parser.add_argument("--config", default="configs/mappo_config_v2.yaml",
+                        help="Environment config (same for both variants). "
+                             "Default = v2 because it carries the edge_connectivity "
+                             "block needed for v2's neighbour-pressure obs features; "
+                             "paper_baseline's actor architecture doesn't depend on it, "
+                             "so this is the fair shared env.")
     parser.add_argument("--episodes", type=int, default=3)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--results-dir", default="metrics")
@@ -358,20 +402,25 @@ def main():
     # Load shared environment config
     config = load_config(args.config)
     env_config = {
-        "agents":           config["agents"],
-        "network_topology": config["network_topology"],
-        "detectors":        config["detectors"],
-        "normalization":    config["normalization"],
-        "reward_config":    config["reward_config"],
-        "network_file":     config["env_config"]["network_file"],
-        "route_file":       config["env_config"]["route_file"],
-        "use_gui":          False,
-        "num_seconds":      config["env_config"].get("num_seconds", 3600),
-        "delta_time":       config["env_config"].get("delta_time", 5),
-        "yellow_time":      config["env_config"].get("yellow_time", 3),
-        "min_green":        config["env_config"].get("min_green", 10),
-        "max_green":        config["env_config"].get("max_green", 50),
-        "enforce_min_green":config["env_config"].get("enforce_min_green", False),
+        "agents":            config["agents"],
+        "network_topology":  config["network_topology"],
+        "detectors":         config["detectors"],
+        "normalization":     config["normalization"],
+        "reward_config":     config["reward_config"],
+        # v2 obs builder reads neighbour outgoing/ingoing edges from this block;
+        # missing → 24 of 70 obs dims silently zero out → policy collapse at eval.
+        "edge_connectivity": config.get("edge_connectivity", {}),
+        "network_file":      config["env_config"]["network_file"],
+        "route_file":        config["env_config"]["route_file"],
+        "use_gui":           False,
+        "num_seconds":       config["env_config"].get("num_seconds", 3600),
+        "delta_time":        config["env_config"].get("delta_time", 5),
+        "yellow_time":       config["env_config"].get("yellow_time", 3),
+        "min_green":         config["env_config"].get("min_green", 10),
+        "max_green":         config["env_config"].get("max_green", 50),
+        "enforce_min_green": config["env_config"].get("enforce_min_green", False),
+        "enforce_min_red":   config["env_config"].get("enforce_min_red", True),
+        "min_red":           config["env_config"].get("min_red", 1),
     }
 
     # Init Ray + register model

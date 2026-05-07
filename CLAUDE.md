@@ -194,7 +194,7 @@ Actor activation is configurable via `actor_activation` in the model config (`mo
     "lambda_": 0.95,               # GAE lambda
     "sgd_minibatch_size": 32768,   # = train_batch_size → 1 minibatch (full-batch update, paper-faithful)
     "train_batch_size": 32768,     # ~12 episodes/iter under complete_episodes (≈2,880 samples/episode × 4 agents)
-    "num_sgd_iter": 10,            # Epochs per update
+    "num_sgd_iter": 15,            # Epochs per update (was 10 pre-2026-05-08)
     "clip_param": 0.2,             # PPO clip
     "vf_clip_param": 10.0,
     "grad_clip": 1.0,              # v2; v1 was 0.5
@@ -236,11 +236,12 @@ Actor activation is configurable via `actor_activation` in the model config (`mo
 **What changed in v2 + IPPO + paper_baseline on 2026-05-08 (post-Phase-1 reference, pre-re-run):**
 - **Actor capacity (v2 + IPPO):** `actor_hiddens` [128, 64] → **[256, 256]** in *both* `mappo_config_v2.yaml` and `ippo_config.yaml`. Phase-1 evidence (paper_baseline beat v2 by 9% with [512, 512]) showed the actor was the under-capacitated branch; widening to [256, 256] closes most of that gap without the sample cost of [512, 512]. Critic kept at [512, 256, 128] (already comparable to paper baseline). Both MAPPO and IPPO use the *same* actor architecture, preserving the controlled-comparison logic — only the critic + neighbour-coupling differ between the two algorithms. paper_baseline keeps its [512, 512] actor (the published reference recipe).
 - **Neighbour-pressure weight:** `-0.5` → **`-0.4`** in *both* `mappo_config_v2.yaml` and `mappo_baseline_paper.yaml`. Mild reduction in MAPPO's coupling strength. Kept in sync across both MAPPO configs to preserve the v2-vs-paper-baseline comparison. IPPO unchanged at `0.0` (its defining feature).
+- **PPO epochs per update (v2 + IPPO):** `num_sgd_iter` 10 → **15** in *both* `mappo_config_v2.yaml` and `ippo_config.yaml`. paper_baseline already used 15 (Hanabi preset). All three configs now match at 15 epochs/update — eliminates one more confounder from the v2-vs-paper and MAPPO-vs-IPPO comparisons. Side cost: per-iteration training step is ~50% longer (only the SGD update portion, not rollout), so wall-clock per 200-iter run rises from ~47 hr to roughly **~50-55 hr** depending on rollout-vs-update split.
 - **Implication for the reference set:** *all three* legacy reference runs are now structurally different from the next runs that use these configs:
   - **v2 d4f9d** (47-h legacy): trained at `min_red=1`, actor `[128, 64]`, neighbour `-0.5`. Three changes vs upcoming v2 run.
   - **paper_baseline 4acfd** (47-h legacy): trained at `min_red=1`, neighbour `-0.5`. Two changes vs upcoming run (architecture unchanged).
   - **IPPO 967fc** (47-h legacy, finished 2026-05-08): trained at `min_red=3` ✓, but actor was still `[128, 64]`. One change (actor) vs upcoming IPPO run.
-  None of the legacy checkpoints are valid baselines for the new comparison. The next set of three runs (v2 + paper_baseline + IPPO, all with the 2026-05-08 configs) becomes the new Phase-1 baseline. **Total compute commitment for the new baseline: ~141 hours = ~6 days, sequential on the single GPU.**
+  None of the legacy checkpoints are valid baselines for the new comparison. The next set of three runs (v2 + paper_baseline + IPPO, all with the 2026-05-08 configs) becomes the new Phase-1 baseline. **Total compute commitment for the new baseline: ~150-165 hours ≈ 6-7 days, sequential on the single GPU** (revised up from ~141 hr after `num_sgd_iter` was raised to 15 in v2 + IPPO).
 
 ### Training Configuration
 

@@ -119,7 +119,7 @@ mappo_config:
   lambda_: 0.95  # GAE lambda (research optimal: 0.95)
   
   # MAPPO-specific (CRITICAL for stability)
-  num_sgd_iter: 10  # 5-15 epochs
+  num_sgd_iter: 15  # 5-15 epochs
   sgd_minibatch_size: 32768  # Minibatch size
   train_batch_size: 32768  # Research optimal: 4000-40000 timesteps
   

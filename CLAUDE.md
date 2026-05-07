@@ -354,11 +354,20 @@ more valuable than asymmetric depth.
 
 **Phase-2 status (as of 2026-05-07):**
 - ✅ Week 4 done: env + obs builder + reward + metrics + smoke tests landed in `RP-6/`.
-  All three smoke tests pass (random rollout, dilemma-core invariant, reward
+  All three Week-4 smoke tests pass (random rollout, dilemma-core invariant, reward
   blending). See `RP-6/tests/test_harvest_smoke.py`.
-- ⏳ Week 5 next: CNN actor + centralized critic on full grid (not concat-of-views),
-  first MAPPO smoke training run.
-- ⏳ Weeks 6-9: IPPO + reward sweep + full 30-run matrix + evaluation.
+- ✅ Week 5 *code* done: CNN actor + centralized CNN critic on full grid (not
+  concat-of-views), `harvest_centralized_critic_postprocessing` hook lifting
+  `info['global_state']` into the SampleBatch, IPPO CNN model with decentralized
+  critic, training entry point `train_mappo_harvest.py`, and the team-shared
+  smoke config `configs/harvest_mappo_team.yaml`. All five CPU shape tests pass
+  (`RP-6/tests/test_models_shape.py`). `harvest_env.py:_build_info` was extended
+  to include `global_state` in every agent's info dict — Week-4 smoke suite
+  re-run, no regression.
+- ⏳ Week 5 *training-loop verification*: smoke-train MAPPO-team for ~50 iters
+  to validate RLlib-2.35 integration of the new postprocessing hook + CNN +
+  MeanStdFilter on image obs. Blocked on the Phase-1 IPPO GPU run finishing.
+- ⏳ Weeks 6-9: IPPO smoke + reward-sweep wiring + full 30-run matrix + evaluation.
 
 ### Phase 3: Cross-Environment Analysis (Weeks 10-15)
 
@@ -413,15 +422,20 @@ Applied/
 │   │   └── tensorboard/               # TensorBoard training logs
 │   └── tests/                         # Validation and setup scripts
 ├── RP-6/                              # Semester 2 Phase 2 (Harvest social dilemma) — NEW
+│   ├── train_mappo_harvest.py        # MAPPO training entry point (CNN + centralized critic + postprocess hook)
 │   ├── marl_env/
 │   │   ├── harvest_env.py             # HarvestEnv (RLlib MultiAgentEnv); 12×8 grid, 4 agents, Discrete(6)
 │   │   ├── harvest_obs.py             # 15×15×3 RGB egocentric observation builder
 │   │   ├── harvest_reward.py          # Sparse +1 per apple + shared_reward_weight blend
 │   │   └── harvest_metrics.py         # Gini, sustainability, equality, time-to-depletion + CSV writers
-│   ├── models/                        # CNN actor + critic (Week 5; not yet built)
-│   ├── configs/                       # 6 configs once reward sweep wired (Week 6)
+│   ├── models/
+│   │   ├── mappo_cnn_model.py         # MAPPOCNNModelCentralizedCritic + harvest_centralized_critic_postprocessing hook
+│   │   └── ippo_cnn_model.py          # IPPOCNNModelDecentralizedCritic (no postprocess hook)
+│   ├── configs/
+│   │   └── harvest_mappo_team.yaml    # Smoke config (shared_reward_weight=1.0); 5 more in Week 6
 │   ├── tests/
-│   │   └── test_harvest_smoke.py      # Random-rollout + dilemma-core + reward-blend smoke tests
+│   │   ├── test_harvest_smoke.py      # Week-4: random-rollout + dilemma-core + reward-blend
+│   │   └── test_models_shape.py       # Week-5: CPU shape-checks for env + both CNN models + postprocess hook
 │   ├── results/                       # Ray Tune output (created on first Phase-2 run)
 │   └── metrics/                       # Per-episode evaluation outputs (Phase-1-CSV-compatible)
 ├── shared/                            # Phase-3 cross-env analysis prep — NEW

@@ -300,11 +300,32 @@ Outperformed both heuristic baselines:
 - **`throughput_weight: 0.1` is retained in all three Phase-1 configs (v2, paper_baseline, IPPO)** by deliberate decision (2026-05-07). The signal is technically broken — `_calculate_throughput_bonus` at `marl_env/reward_function.py:245-263` calls `simulation.getDepartedNumber()`, which returns network-wide *departures* (driven by the `.rou.xml` insertion schedule, exogenous to agent actions), not arrivals or per-agent throughput. The 0.1 weight thus contributes near-noise gradient. It is held constant across all three configs so it doesn't confound the MAPPO-vs-IPPO or v2-vs-paper-baseline comparisons. **Methodology note:** the IPPO config comment block at `ippo_config.yaml:104-110` describing rewards as "purely local" is therefore mildly aspirational — the accurate framing is "no explicit neighbour coupling," since the shared throughput term remains.
 - All algorithm hyperparameters identical to MAPPO v2 (lr, gamma, λ, clip, batches, entropy, grad_clip, actor/critic hidden sizes). The differences between MAPPO and IPPO are exactly the two MARL design choices: (1) centralized vs decentralized critic and (2) presence vs absence of the neighbour-coupled reward term — the "fully cooperative MARL package" vs "fully independent learners" contrast.
 - Parameter sharing preserved: all 4 agents share a single `"shared_policy"`, matching MAPPO setup.
-- Outstanding: extend `evaluate.py` and `compare_baseline.py` with `--algo {mappo,ippo}` flag before IPPO checkpoints can be evaluated against the baselines.
+- IPPO checkpoint loading in `evaluate.py` / `compare_baseline.py`: resolved 2026-05-08 by registering both `MAPPOModelCentralizedCritic` *and* `IPPOModelDecentralizedCritic` in `evaluate.py:29-30` and `:382-385` (instead of an `--algo` flag). `compare_baseline.py` shells out to `evaluate.py`, so it inherits the fix.
 
 **Task 1.4:** Comparative evaluation
 - Metrics: Network waiting time, throughput, queue lengths
 - Analysis: Coordination value = (MAPPO performance - IPPO performance)
+
+**Phase-1 status (as of 2026-05-08):**
+- ✅ IPPO 200-iter run finished: run id `967fc`, 47.72 h wall-clock, final
+  `episode_reward_mean = -57.87`. Trained at `min_red=3` (post-2026-05-06
+  plumbing patch). Checkpoints in `RP-5/results/ippo_traffic_control/PPO_sumo_traffic_967fc_00000_0_2026-05-06_00-44-26/`.
+- ⚠ **First IPPO-vs-MAPPO eval (2026-05-08) is NOT apples-to-apples.** The
+  MAPPO checkpoint used (v2 d4f9d) was trained with `min_red=0` (no all-red
+  clearance), while the new IPPO checkpoint trained with `min_red=3`, and
+  evaluation always applies `min_red=3` (per `evaluate.py`'s YAML plumbing).
+  This means MAPPO is at a structural disadvantage at eval time — every phase
+  change costs 3 sim-sec of all-red the policy never trained against. Eval-time
+  numbers (IPPO 9.53 s avg wait, MAPPO 14.14 s) cannot be cited as "IPPO beats
+  MAPPO" until the v2 + paper_baseline re-runs at `min_red=3` land. See
+  `RP-5/metrics/IPPO/` and `RP-5/metrics/MAPPO/` for the unbalanced eval data.
+- ✅ What CAN be cited from this eval: IPPO is competitive with the
+  Max-Pressure heuristic (9.53 s vs 8.05 s avg wait, +18% gap) and crushes
+  Fixed-Time (38.25 s). IPPO's standalone numbers are clean (train env =
+  eval env).
+- ⏳ Outstanding: re-run v2 MAPPO + paper_baseline at `min_red=3` (~47 h each)
+  before any IPPO-vs-MAPPO claim is made in the writeup. Sequential on the
+  single GPU.
 
 ### Phase 2: Social Dilemma Environment (Weeks 4-9)
 
@@ -352,7 +373,7 @@ critic + reward simultaneously). **Population-based training: dropped** — woul
 multiply the matrix 4-8× and Phase 1 didn't use it, so symmetric experiments are
 more valuable than asymmetric depth.
 
-**Phase-2 status (as of 2026-05-07):**
+**Phase-2 status (as of 2026-05-08):**
 - ✅ Week 4 done: env + obs builder + reward + metrics + smoke tests landed in `RP-6/`.
   All three Week-4 smoke tests pass (random rollout, dilemma-core invariant, reward
   blending). See `RP-6/tests/test_harvest_smoke.py`.
@@ -364,10 +385,27 @@ more valuable than asymmetric depth.
   (`RP-6/tests/test_models_shape.py`). `harvest_env.py:_build_info` was extended
   to include `global_state` in every agent's info dict — Week-4 smoke suite
   re-run, no regression.
-- ⏳ Week 5 *training-loop verification*: smoke-train MAPPO-team for ~50 iters
-  to validate RLlib-2.35 integration of the new postprocessing hook + CNN +
-  MeanStdFilter on image obs. Blocked on the Phase-1 IPPO GPU run finishing.
-- ⏳ Weeks 6-9: IPPO smoke + reward-sweep wiring + full 30-run matrix + evaluation.
+- ✅ Week 5 *training-loop verification done* (2026-05-08): 1-iter MAPPO-Harvest
+  smoke training completed in **63.78 s wall-clock** (one-time setup heavy;
+  steady-state ~30-50 s/iter). Iter 1 produced 33 episodes of length 1000,
+  `episode_reward_mean = +458.21` under `shared_reward_weight=1.0`, checkpoint
+  written to `RP-6/results/mappo_harvest/PPO_harvest_<id>/checkpoint_000000`.
+  All Week-5 integration risks dispatched: RLlib 2.35 + custom CNN model
+  registration, MeanStdFilter on uint8 image obs, postprocessing hook firing in
+  real rollouts, centralized critic forward pass on global state, env_config
+  plumbing all confirmed. **Wall-clock projection updated:** 200-iter Harvest
+  run ≈ ~3 hours (vs SUMO's ~47 hours); full 33-run Phase-2 matrix ≈ ~4 days
+  (vs ~9-10 days originally projected).
+- ⚠ **Cosmetic post-fit issue on Windows**: after `tuner.fit()` succeeds and
+  writes the checkpoint, Ray Tune's `ExperimentAnalysis` triggers a Windows
+  access violation in `pandas/pyarrow/string_arrow.py` while reading the
+  progress CSV back. Training output is intact (checkpoint, progress.csv,
+  params.json all present); only the script's exit code is non-zero. Decision
+  2026-05-08: live with it (option (c) — don't pin pyarrow/pandas, don't wrap
+  in subprocess). Future runs will exit non-zero after success; verify by
+  inspecting the result dir, not the exit code.
+- ⏳ Weeks 6-9: IPPO Harvest smoke + reward-sweep wiring + full 30-run matrix
+  + evaluation.
 
 ### Phase 3: Cross-Environment Analysis (Weeks 10-15)
 

@@ -233,10 +233,14 @@ Actor activation is configurable via `actor_activation` in the model config (`mo
 - **Neighbour edge connectivity:** new `edge_connectivity:` block giving the explicit outgoing/ingoing edges between every adjacent junction pair (J1↔J2, J1↔J3, J2↔J4, J3↔J4). Enables direction-aware neighbour pressure features.
 - **Configurable actor activation:** `models/mappo_model.py` now reads `actor_activation` from the config (was hard-coded to Tanh).
 
-**What changed in v2 on 2026-05-08 (post-Phase-1 reference, pre-min_red=3 re-run):**
-- **Actor capacity:** `actor_hiddens` [128, 64] → **[256, 256]**. Phase-1 evidence (paper_baseline beat v2 by 9% with [512, 512]) showed the actor was the under-capacitated branch; widening to [256, 256] closes most of that gap without the sample cost of [512, 512]. Critic kept at [512, 256, 128] (already comparable to paper baseline).
-- **Neighbour-pressure weight:** `-0.5` → **`-0.4`** in *both* `mappo_config_v2.yaml` and `mappo_baseline_paper.yaml`. Mild reduction in MAPPO's coupling strength. Kept in sync across both MAPPO configs to preserve the v2-vs-paper-baseline comparison. IPPO unchanged at `0.0`.
-- **Implication for the reference set:** the legacy v2 d4f9d (47-h reference run) is now under TWO simultaneous changes vs the next v2 run — `min_red=1 → 3` AND `actor [128,64] → [256,256]` AND `neighbour_pressure −0.5 → −0.4`. Future v2 runs after this date are not directly comparable to d4f9d. The next set of reference runs (v2 + paper_baseline + IPPO at min_red=3) becomes the new Phase-1 baseline.
+**What changed in v2 + IPPO + paper_baseline on 2026-05-08 (post-Phase-1 reference, pre-re-run):**
+- **Actor capacity (v2 + IPPO):** `actor_hiddens` [128, 64] → **[256, 256]** in *both* `mappo_config_v2.yaml` and `ippo_config.yaml`. Phase-1 evidence (paper_baseline beat v2 by 9% with [512, 512]) showed the actor was the under-capacitated branch; widening to [256, 256] closes most of that gap without the sample cost of [512, 512]. Critic kept at [512, 256, 128] (already comparable to paper baseline). Both MAPPO and IPPO use the *same* actor architecture, preserving the controlled-comparison logic — only the critic + neighbour-coupling differ between the two algorithms. paper_baseline keeps its [512, 512] actor (the published reference recipe).
+- **Neighbour-pressure weight:** `-0.5` → **`-0.4`** in *both* `mappo_config_v2.yaml` and `mappo_baseline_paper.yaml`. Mild reduction in MAPPO's coupling strength. Kept in sync across both MAPPO configs to preserve the v2-vs-paper-baseline comparison. IPPO unchanged at `0.0` (its defining feature).
+- **Implication for the reference set:** *all three* legacy reference runs are now structurally different from the next runs that use these configs:
+  - **v2 d4f9d** (47-h legacy): trained at `min_red=1`, actor `[128, 64]`, neighbour `-0.5`. Three changes vs upcoming v2 run.
+  - **paper_baseline 4acfd** (47-h legacy): trained at `min_red=1`, neighbour `-0.5`. Two changes vs upcoming run (architecture unchanged).
+  - **IPPO 967fc** (47-h legacy, finished 2026-05-08): trained at `min_red=3` ✓, but actor was still `[128, 64]`. One change (actor) vs upcoming IPPO run.
+  None of the legacy checkpoints are valid baselines for the new comparison. The next set of three runs (v2 + paper_baseline + IPPO, all with the 2026-05-08 configs) becomes the new Phase-1 baseline. **Total compute commitment for the new baseline: ~141 hours = ~6 days, sequential on the single GPU.**
 
 ### Training Configuration
 
@@ -315,6 +319,8 @@ Outperformed both heuristic baselines:
 - ✅ IPPO 200-iter run finished: run id `967fc`, 47.72 h wall-clock, final
   `episode_reward_mean = -57.87`. Trained at `min_red=3` (post-2026-05-06
   plumbing patch). Checkpoints in `RP-5/results/ippo_traffic_control/PPO_sumo_traffic_967fc_00000_0_2026-05-06_00-44-26/`.
+  **Now legacy as of the 2026-05-08 actor widening — `967fc` used actor `[128, 64]`,
+  the upcoming IPPO re-run uses `[256, 256]`.** Kept for reference / inspection only.
 - ⚠ **First IPPO-vs-MAPPO eval (2026-05-08) is NOT apples-to-apples.** The
   MAPPO checkpoint used (v2 d4f9d) was trained with `min_red=0` (no all-red
   clearance), while the new IPPO checkpoint trained with `min_red=3`, and

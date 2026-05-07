@@ -180,7 +180,7 @@ model_config:
     num_agents: 4
 
     # Actor network (decentralized) — identical to MAPPO for fair comparison
-    actor_hiddens: [128, 64]
+    actor_hiddens: [256, 256]
     actor_activation: "tanh"
 
     # Critic network — input is 70-dim local obs (not 280-dim global state).

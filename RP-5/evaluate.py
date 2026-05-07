@@ -27,6 +27,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from marl_env.sumo_env import SUMOTrafficEnv
 from models.mappo_model import MAPPOModelCentralizedCritic
+from models.ippo_model import IPPOModelDecentralizedCritic
 
 try:
     import libsumo as traci
@@ -379,7 +380,11 @@ def evaluate_mappo(
         ray.init(ignore_reinit_error=True)
     
     tune.register_env("sumo_traffic", lambda cfg: SUMOTrafficEnv(cfg))
+    # Register both Phase-1 model classes so checkpoints from either algo load.
+    # The checkpoint's params.json names which one to use; we just need both
+    # registered before PPO.from_checkpoint() instantiates the policy.
     ModelCatalog.register_custom_model("mappo_centralized", MAPPOModelCentralizedCritic)
+    ModelCatalog.register_custom_model("ippo_decentralized", IPPOModelDecentralizedCritic)
     
     print(f"\n{'='*80}")
     print(f"MAPPO EVALUATION (CORRECT ARRIVAL TRACKING)")

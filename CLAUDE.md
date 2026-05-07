@@ -32,7 +32,7 @@ Investigate when and why cooperation emerges versus exploitation in multi-agent 
 
 **Semester 2 (PLANNED):** Social Dilemma Testing
 - Phase 1: On the existing 2×2 grid, compare the currently implemented MAPPO against the paper baseline MAPPO (Yu et al. 2021, "The Surprising Effectiveness of PPO in Cooperative Multi-Agent Games") and against IPPO. **5×5 grid scaling is deprioritized** — see "Scope changes" below.
-- Phase 2: Implement social dilemma environment (Harvest/custom/predator-prey)
+- Phase 2: Implement social dilemma environment — **Harvest** selected (Leibo et al. 2017), built from scratch in `RP-6/`. See Phase 2 section below for the experiment matrix.
 - Phase 3: Cross-environment analysis of cooperation mechanisms
 
 **Scope changes (in-flight):**
@@ -296,8 +296,9 @@ Outperformed both heuristic baselines:
 **Task 1.3:** Implement Independent PPO (IPPO) — *scaffolded*
 - Status: model (`models/ippo_model.py`), config (`configs/ippo_config.yaml`), and training entry point (`train_ippo.py`) all created. Ready to train.
 - **Decentralized critic**: each agent's value function sees only its own 70-dim local observation (vs MAPPO's 280-dim concatenated global state).
-- **Local rewards**: `neighbor_pressure_weight` is zeroed in the IPPO config so each agent optimizes only its own intersection metrics — no cooperative / shared reward signal. MAPPO retains the neighbour coupling term.
-- All algorithm hyperparameters identical to MAPPO v2 (lr, gamma, λ, clip, batches, entropy, grad_clip, actor/critic hidden sizes). The differences between MAPPO and IPPO are exactly the two MARL design choices: (1) centralized vs decentralized critic and (2) shared vs local reward — the "fully cooperative" vs "fully independent" contrast.
+- **No explicit neighbour coupling in reward**: `neighbor_pressure_weight` is zeroed in the IPPO config (the sole multi-agent coupling term in `reward_function.py`). MAPPO retains the neighbour coupling term at `-0.5`.
+- **`throughput_weight: 0.1` is retained in all three Phase-1 configs (v2, paper_baseline, IPPO)** by deliberate decision (2026-05-07). The signal is technically broken — `_calculate_throughput_bonus` at `marl_env/reward_function.py:245-263` calls `simulation.getDepartedNumber()`, which returns network-wide *departures* (driven by the `.rou.xml` insertion schedule, exogenous to agent actions), not arrivals or per-agent throughput. The 0.1 weight thus contributes near-noise gradient. It is held constant across all three configs so it doesn't confound the MAPPO-vs-IPPO or v2-vs-paper-baseline comparisons. **Methodology note:** the IPPO config comment block at `ippo_config.yaml:104-110` describing rewards as "purely local" is therefore mildly aspirational — the accurate framing is "no explicit neighbour coupling," since the shared throughput term remains.
+- All algorithm hyperparameters identical to MAPPO v2 (lr, gamma, λ, clip, batches, entropy, grad_clip, actor/critic hidden sizes). The differences between MAPPO and IPPO are exactly the two MARL design choices: (1) centralized vs decentralized critic and (2) presence vs absence of the neighbour-coupled reward term — the "fully cooperative MARL package" vs "fully independent learners" contrast.
 - Parameter sharing preserved: all 4 agents share a single `"shared_policy"`, matching MAPPO setup.
 - Outstanding: extend `evaluate.py` and `compare_baseline.py` with `--algo {mappo,ippo}` flag before IPPO checkpoints can be evaluated against the baselines.
 
@@ -307,20 +308,57 @@ Outperformed both heuristic baselines:
 
 ### Phase 2: Social Dilemma Environment (Weeks 4-9)
 
-**Environment Candidates:**
-1. **Harvest (PettingZoo):** Apple collection with sustainability dilemma
-2. **Custom Traffic Dilemma:** Asymmetric tolling scenario
-3. **Predator-Prey:** Cooperative hunting with exploitation opportunities
+**Selected env: Harvest (Leibo et al. 2017, "Multi-agent Reinforcement Learning in
+Sequential Social Dilemmas")**, implemented from scratch in `RP-6/` rather than ported
+from the `sequential_social_dilemmas` repo (which targets RLlib 0.x APIs and would
+fight the connector / MeanStdFilter pipeline). Decided 2026-05-07. The two non-selected
+candidates (custom traffic-tolling, predator-prey) are documented in the plan file but
+were rejected: custom traffic forces designing the dilemma payoff structure ourselves
+(circular research design), predator-prey lacks a true defection axis at the within-team
+level. Detailed design is in `~/.claude/plans/while-the-training-is-piped-bachman.md`.
 
-**Selection Criteria:**
-- Measurable cooperation metrics
-- Clear individual-vs-collective tension
-- RLlib compatibility
+**Env scoping decisions:**
+- 12×8 grid, **4 agents** (matches Phase-1 SUMO setup → cleanest cross-env synthesis).
+- 1000-step episodes, no early termination.
+- Actions: `Discrete(6)` — N/S/E/W movement, stay, collect-apple. Tag action deferred
+  (would extend to `Discrete(7)` if punishment dynamics get studied later).
+- Observations: `(15, 15, 3)` uint8 RGB egocentric patches. All agents render
+  identically (no self/other distinction). Walls = red, apples = green, agents = blue.
+- Apple regrowth (the dilemma core): `P_regrow = 0.01 * count_neighbours_within_radius_2`,
+  zero regrowth where there are no neighbours. **A fully-depleted region cannot recover
+  within an episode** — over-harvesting is permanent, which is what makes it a dilemma.
 
-**Experiments:**
-- Train IPPO and MAPPO in selected dilemma
-- Log cooperation-specific metrics (resource sustainability, collective welfare)
-- Population-based training (if time permits)
+**Reward design:**
+- Sparse +1 per apple collected, blended with team average via `shared_reward_weight`.
+- The single load-bearing experimental dimension. Three values swept:
+  `0.0` (pure individual / canonical SSD / defection-permitting),
+  `0.5` (mixed),
+  `1.0` (fully team-shared / cooperation structurally enforced).
+- No throughput/pressure/shaping terms (those were SUMO-specific; would muddy the
+  dilemma signal here).
+
+**Experiment matrix (33 runs total):**
+| Algorithm | Reward sharing | Seeds | Subtotal |
+|---|---|---:|---:|
+| MAPPO | individual / mixed / team | 5 each | 15 |
+| IPPO  | individual / mixed / team | 5 each | 15 |
+| FixedGreedy ("collect every visible apple") | n/a | 3 | 3 |
+
+200 iters per run. Seeds 42–46. Pairwise comparisons via Welch's t-test on the four
+key metrics (sustainability, Gini, total apples, time-to-depletion). The
+reward-sharing axis directly answers thesis question #1 ("how do individual vs
+shared rewards affect cooperation?") which Phase 1 cannot isolate (Phase 1 varies
+critic + reward simultaneously). **Population-based training: dropped** — would
+multiply the matrix 4-8× and Phase 1 didn't use it, so symmetric experiments are
+more valuable than asymmetric depth.
+
+**Phase-2 status (as of 2026-05-07):**
+- ✅ Week 4 done: env + obs builder + reward + metrics + smoke tests landed in `RP-6/`.
+  All three smoke tests pass (random rollout, dilemma-core invariant, reward
+  blending). See `RP-6/tests/test_harvest_smoke.py`.
+- ⏳ Week 5 next: CNN actor + centralized critic on full grid (not concat-of-views),
+  first MAPPO smoke training run.
+- ⏳ Weeks 6-9: IPPO + reward sweep + full 30-run matrix + evaluation.
 
 ### Phase 3: Cross-Environment Analysis (Weeks 10-15)
 
@@ -374,6 +412,20 @@ Applied/
 │   ├── logs/
 │   │   └── tensorboard/               # TensorBoard training logs
 │   └── tests/                         # Validation and setup scripts
+├── RP-6/                              # Semester 2 Phase 2 (Harvest social dilemma) — NEW
+│   ├── marl_env/
+│   │   ├── harvest_env.py             # HarvestEnv (RLlib MultiAgentEnv); 12×8 grid, 4 agents, Discrete(6)
+│   │   ├── harvest_obs.py             # 15×15×3 RGB egocentric observation builder
+│   │   ├── harvest_reward.py          # Sparse +1 per apple + shared_reward_weight blend
+│   │   └── harvest_metrics.py         # Gini, sustainability, equality, time-to-depletion + CSV writers
+│   ├── models/                        # CNN actor + critic (Week 5; not yet built)
+│   ├── configs/                       # 6 configs once reward sweep wired (Week 6)
+│   ├── tests/
+│   │   └── test_harvest_smoke.py      # Random-rollout + dilemma-core + reward-blend smoke tests
+│   ├── results/                       # Ray Tune output (created on first Phase-2 run)
+│   └── metrics/                       # Per-episode evaluation outputs (Phase-1-CSV-compatible)
+├── shared/                            # Phase-3 cross-env analysis prep — NEW
+│   └── (plot_helpers.py, cross_env_synthesis.py — both built in Phase-2 Week 9)
 └── Emergent Social Behaviour... Interim.pdf  # Interim report (Semester 1)
 ```
 
@@ -532,7 +584,9 @@ Outputs saved to `metrics/`:
 - Resolution: deprioritized for Semester 2 (see Scope changes). If revisited, maintain 3 workers and extend training time as needed.
 
 **Challenge:** Social dilemma environment selection
-- Solution: Allocated Weeks 3-4 for evaluation, have fallback to traffic-only
+- Resolved 2026-05-07: Harvest selected (Leibo et al. 2017), implemented from scratch
+  in `RP-6/` rather than ported from `sequential_social_dilemmas` repo. Custom traffic
+  and predator-prey rejected — see Phase 2 section above.
 
 **Challenge:** Fair IPPO-MAPPO comparison
 - Solution: Keep all algorithm hyperparameters and the actor architecture identical; vary only the two MARL design choices that define the contrast — centralized vs decentralized critic, and shared/neighbour-coupled vs purely local reward. This is a "fully cooperative MARL package" vs "fully independent learners" comparison, not a single-variable critic ablation.
@@ -732,6 +786,6 @@ When helping with this project:
 3. **Recognize CTDE is central** - Centralized training, decentralized execution
 4. **Traffic is cooperative** - Network effects align incentives
 5. **Dilemmas create conflict** - Individual gain from exploitation
-6. **S2 is exploratory** - Environment selection still pending
+6. **S2 Phase-2 env is selected** — Harvest (Leibo 2017), built from scratch in `RP-6/`. Detailed design: `~/.claude/plans/while-the-training-is-piped-bachman.md`. Week-4 scaffolding done as of 2026-05-07.
 7. **Time constraints matter** - 15-week S2 timeline is tight
 8. **Non-specialist audience** - Presentations must be accessible

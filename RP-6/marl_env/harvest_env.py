@@ -278,10 +278,17 @@ class HarvestEnv(MultiAgentEnv):
         self.apple_grid |= regrow
 
     def _build_info(self, agent_id: str) -> Dict:
+        # `global_state` is included in every agent's info so the MAPPO
+        # centralized-critic postprocessing hook can pull it into the
+        # SampleBatch without needing to coordinate across agents. The cost
+        # is that the same (H, W, 3) array is duplicated num_agents times
+        # per step in the rollout buffer — tolerable at the small grid sizes
+        # used here. IPPO's decentralized critic ignores this field.
         return {
             "apples_collected_this_step": int(self.last_apples_collected[agent_id]),
             "position": tuple(self.agent_positions[agent_id]),
             "current_apple_count_global": int(self.apple_grid.sum()),
+            "global_state": self._get_global_state(),
         }
 
     # ── Debug rendering ───────────────────────────────────────────────────────

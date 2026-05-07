@@ -1,0 +1,131 @@
+# MAPPO + Harvest, team-shared reward (shared_reward_weight = 1.0).
+# Smallest-risk Phase-2 smoke condition: forced cooperation removes the
+# defection axis, so MAPPO should converge cleanly. If this won't train,
+# nothing in the matrix will.
+
+env_config:
+  # Grid + episode shape
+  grid_height: 8
+  grid_width: 12
+  num_agents: 4
+  episode_length: 1000
+  obs_window: 15
+
+  # Apple dynamics — Leibo 2017-style with a simple linear neighbour rule
+  initial_apple_density: 0.3
+  apple_regrowth_base: 0.01
+  apple_regrowth_radius: 2
+
+  # Reward sharing — TEAM (canonical-cooperative end of the sweep)
+  shared_reward_weight: 1.0
+
+  # Reproducibility — overridden per-run by the seed sweep
+  seed: 42
+
+# Agent identifiers (parallel to RP-5's J1..J4 traffic-junction IDs)
+agents:
+  - "A0"
+  - "A1"
+  - "A2"
+  - "A3"
+
+# MAPPO algorithm config — section name kept as `mappo_config` for parity
+# with train_mappo.py / train_ippo.py loaders.
+mappo_config:
+  # PPO core
+  lr: 5.0e-4
+  gamma: 0.99
+  lambda_: 0.95
+
+  # Update knobs (matches Phase-1 v2 — keeps Phase-1-vs-Phase-2 algorithm
+  # comparison attributable to env, not to hyperparameter drift)
+  num_sgd_iter: 10
+  sgd_minibatch_size: 32768
+  train_batch_size: 32768
+
+  # Clipping & regularisation
+  clip_param: 0.2
+  vf_clip_param: 10.0
+  grad_clip: 1.0
+  entropy_coeff: 0.02
+  vf_loss_coeff: 1.0
+
+  # Architecture toggles
+  vf_share_layers: false
+  use_critic: true
+  use_gae: true
+
+  framework: "torch"
+
+  multiagent:
+    policies_to_train: ["shared_policy"]
+    policy_mapping_fn: "lambda agent_id, episode, worker, **kwargs: 'shared_policy'"
+
+  # Rollout — same worker count as Phase-1 v2; no SUMO/TraCI overhead so each
+  # worker should spin episodes faster than the SUMO env did.
+  num_rollout_workers: 3
+  num_envs_per_worker: 1
+  rollout_fragment_length: 200
+  batch_mode: "complete_episodes"
+  sample_timeout_s: 120
+  observation_filter: "MeanStdFilter"  # Same as Phase-1 — eval-time apply path is in evaluate_harvest.py
+
+  # GPU
+  num_gpus: 1
+  num_gpus_per_worker: 0
+
+  # Evaluation cadence
+  evaluation_interval: 10
+  evaluation_duration: 5
+  evaluation_duration_unit: "episodes"
+  evaluation_config:
+    explore: false
+    env_config:
+      use_gui: false
+
+# Neural network — CNN actor + centralized CNN critic on full grid
+model_config:
+  custom_model: "mappo_cnn_centralized"
+  custom_model_config:
+    # Critic input shape — must match env's grid dims
+    global_state_height: 8
+    global_state_width: 12
+
+    # Actor (15x15x3 egocentric -> Conv stack -> Dense -> 6 logits)
+    actor_conv_specs: [[16, 3], [32, 3]]
+    actor_hiddens: [128, 64]
+    actor_activation: "tanh"
+
+    # Critic (12x8x3 full grid -> Conv stack -> Dense -> 1 value)
+    critic_conv_specs: [[32, 3], [64, 3]]
+    critic_hiddens: [512, 256, 128]
+    critic_activation: "relu"
+
+    use_orthogonal_init: true
+    orthogonal_gain: 0.01
+    use_value_normalization: true
+
+# Training run config
+training:
+  num_iterations: 200
+  checkpoint_freq: 25
+  checkpoint_at_end: true
+  keep_checkpoints_num: 5
+  stop:
+    training_iteration: 200
+
+  log_level: "INFO"
+  log_to_file: true
+
+logging:
+  tensorboard_dir: "logs/tensorboard"
+  custom_metrics:
+    - "total_apples_collected"
+    - "gini_coefficient"
+    - "sustainability"
+    - "time_to_depletion"
+
+# Reproducibility
+seed: 42
+torch_seed: 42
+numpy_seed: 42

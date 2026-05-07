@@ -106,7 +106,7 @@ reward_config:
   waiting_time_weight: -1.0
   throughput_weight: 0.1
   pressure_weight: -0.4
-  neighbor_pressure_weight: -0.5
+  neighbor_pressure_weight: -0.4
   spatial_discount: 0.9
   clip_min: -3.0
   clip_max: 1.0
@@ -172,7 +172,7 @@ model_config:
     num_agents: 4  # Required for 280-dim global state (70 × 4)
     
     # Actor network (decentralized)
-    actor_hiddens: [128, 64]
+    actor_hiddens: [256, 256]
     actor_activation: "tanh"
     
     # Critic network (centralized, larger capacity)

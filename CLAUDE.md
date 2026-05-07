@@ -148,7 +148,7 @@ enforce_min_red: true, min_red: 3 (mappo_config_v2.yaml + ippo_config.yaml) — 
 
 **Reward Function (Multi-component):**
 ```
-r_t = -1.0·W_t - 0.25·Q_t + 0.1·T_t - 0.4·P_t - 0.5·N_t
+r_t = -1.0·W_t - 0.25·Q_t + 0.1·T_t - 0.4·P_t - 0.4·N_t  # N_t coeff was -0.5 pre-2026-05-08
 Clipped to range: [-3.0, 1.0]
 
 Where:
@@ -170,8 +170,8 @@ Normalization constants:
 
 *Actor Network (Decentralized, class: MAPPOModelCentralizedCritic):*
 - Input: 70 dim (local observations only)
-- Hidden 1: 128 units, Tanh (orthogonal init)
-- Hidden 2: 64 units, Tanh (orthogonal init)
+- Hidden 1: 256 units, Tanh (orthogonal init)  # was 128 pre-2026-05-08
+- Hidden 2: 256 units, Tanh (orthogonal init)  # was 64  pre-2026-05-08
 - Output: 4 units (action logits, gain=0.01)
 
 *Critic Network (Centralized):*
@@ -232,6 +232,11 @@ Actor activation is configurable via `actor_activation` in the model config (`mo
 - **Per-junction directional metadata:** new `ns_edges` / `ew_edges` lists inside the `detectors:` block, separating north/south from east/west incoming edges.
 - **Neighbour edge connectivity:** new `edge_connectivity:` block giving the explicit outgoing/ingoing edges between every adjacent junction pair (J1↔J2, J1↔J3, J2↔J4, J3↔J4). Enables direction-aware neighbour pressure features.
 - **Configurable actor activation:** `models/mappo_model.py` now reads `actor_activation` from the config (was hard-coded to Tanh).
+
+**What changed in v2 on 2026-05-08 (post-Phase-1 reference, pre-min_red=3 re-run):**
+- **Actor capacity:** `actor_hiddens` [128, 64] → **[256, 256]**. Phase-1 evidence (paper_baseline beat v2 by 9% with [512, 512]) showed the actor was the under-capacitated branch; widening to [256, 256] closes most of that gap without the sample cost of [512, 512]. Critic kept at [512, 256, 128] (already comparable to paper baseline).
+- **Neighbour-pressure weight:** `-0.5` → **`-0.4`** in *both* `mappo_config_v2.yaml` and `mappo_baseline_paper.yaml`. Mild reduction in MAPPO's coupling strength. Kept in sync across both MAPPO configs to preserve the v2-vs-paper-baseline comparison. IPPO unchanged at `0.0`.
+- **Implication for the reference set:** the legacy v2 d4f9d (47-h reference run) is now under TWO simultaneous changes vs the next v2 run — `min_red=1 → 3` AND `actor [128,64] → [256,256]` AND `neighbour_pressure −0.5 → −0.4`. Future v2 runs after this date are not directly comparable to d4f9d. The next set of reference runs (v2 + paper_baseline + IPPO at min_red=3) becomes the new Phase-1 baseline.
 
 ### Training Configuration
 
@@ -296,7 +301,7 @@ Outperformed both heuristic baselines:
 **Task 1.3:** Implement Independent PPO (IPPO) — *scaffolded*
 - Status: model (`models/ippo_model.py`), config (`configs/ippo_config.yaml`), and training entry point (`train_ippo.py`) all created. Ready to train.
 - **Decentralized critic**: each agent's value function sees only its own 70-dim local observation (vs MAPPO's 280-dim concatenated global state).
-- **No explicit neighbour coupling in reward**: `neighbor_pressure_weight` is zeroed in the IPPO config (the sole multi-agent coupling term in `reward_function.py`). MAPPO retains the neighbour coupling term at `-0.5`.
+- **No explicit neighbour coupling in reward**: `neighbor_pressure_weight` is zeroed in the IPPO config (the sole multi-agent coupling term in `reward_function.py`). MAPPO retains the neighbour coupling term at `-0.4` (was `-0.5` until 2026-05-08).
 - **`throughput_weight: 0.1` is retained in all three Phase-1 configs (v2, paper_baseline, IPPO)** by deliberate decision (2026-05-07). The signal is technically broken — `_calculate_throughput_bonus` at `marl_env/reward_function.py:245-263` calls `simulation.getDepartedNumber()`, which returns network-wide *departures* (driven by the `.rou.xml` insertion schedule, exogenous to agent actions), not arrivals or per-agent throughput. The 0.1 weight thus contributes near-noise gradient. It is held constant across all three configs so it doesn't confound the MAPPO-vs-IPPO or v2-vs-paper-baseline comparisons. **Methodology note:** the IPPO config comment block at `ippo_config.yaml:104-110` describing rewards as "purely local" is therefore mildly aspirational — the accurate framing is "no explicit neighbour coupling," since the shared throughput term remains.
 - All algorithm hyperparameters identical to MAPPO v2 (lr, gamma, λ, clip, batches, entropy, grad_clip, actor/critic hidden sizes). The differences between MAPPO and IPPO are exactly the two MARL design choices: (1) centralized vs decentralized critic and (2) presence vs absence of the neighbour-coupled reward term — the "fully cooperative MARL package" vs "fully independent learners" contrast.
 - Parameter sharing preserved: all 4 agents share a single `"shared_policy"`, matching MAPPO setup.

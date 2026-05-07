@@ -142,7 +142,7 @@ reward_config:
   waiting_time_weight: -1.0
   throughput_weight: 0.1
   pressure_weight: -0.4
-  neighbor_pressure_weight: -0.5
+  neighbor_pressure_weight: -0.4
   spatial_discount: 0.9
   clip_min: -3.0
   clip_max: 1.0
@@ -236,7 +236,7 @@ training:
 
   stop:
     training_iteration: 1000
-    episode_reward_mean: -5
+    episode_reward_mean: 10
 
   log_level: "INFO"
   log_to_file: true

@@ -1,0 +1,6 @@
+Metric,v2 (improvised),Paper Baseline,Improvement (A vs B)
+Mean Reward,-113.26,-100.56,-12.6%
+Mean Arrivals,1263,1261,+0.2%
+Avg Wait (s),17.27,14.14,-22.1%
+Avg Halting,7.1,5.5,-27.3%
+Peak Halting,26,18,-44.4%

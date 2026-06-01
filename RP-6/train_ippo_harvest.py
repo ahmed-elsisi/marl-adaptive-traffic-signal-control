@@ -1,24 +1,20 @@
 """
-MAPPO training entry point for HarvestEnv (Phase-2).
+IPPO training entry point for HarvestEnv (Phase-2).
 
-Mirrors RP-5/train_mappo.py / RP-5/train_ippo.py structure so the workflow
-is consistent across phases. Differences from Phase-1:
+Mirrors train_mappo_harvest.py with two differences (same pattern as
+RP-5/train_ippo.py vs RP-5/train_mappo.py):
 
-  - Env: HarvestEnv (RLlib MultiAgentEnv) instead of SUMOTrafficEnv.
-  - Model: 'mappo_cnn_centralized' (CNN actor + CNN critic on full grid)
-           instead of 'mappo_centralized' (MLP).
-  - Postprocessing: harvest_centralized_critic_postprocessing lifts
-                    info['global_state'] into the SampleBatch (vs the
-                    SUMO version which concats other agents' obs).
-  - PolicySpec includes the postprocess_fn directly (RLlib 2.35 pattern).
+  - Model: 'ippo_cnn_decentralized' (CNN actor + CNN critic over the same
+           15x15x3 local patch, separate weights). No global state.
+  - PolicySpec: no postprocess_fn — RLlib's default PPO postprocessing
+                handles GAE on local observations.
 
-PPO hyperparameters are loaded from the YAML config (default
-configs/harvest_mappo_team.yaml — the cooperative end of the sweep, used
-as the Week-5 smoke condition).
+Results land in results/ippo_harvest/ so MAPPO and IPPO checkpoint trees
+stay separated for sweep tooling.
 
 Run:
-    python train_mappo_harvest.py --config configs/harvest_mappo_team.yaml \\
-                                   --iterations 200
+    python train_ippo_harvest.py --config configs/harvest_ippo_team.yaml \\
+                                  --iterations 200
 """
 
 import argparse
@@ -36,15 +32,14 @@ from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.policy.policy import PolicySpec
 from ray.tune.registry import register_env
 
-# Make RP-6/ importable when invoked as a script.
 _PROJECT_ROOT = Path(__file__).resolve().parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from marl_env.harvest_env import HarvestEnv
-from models.mappo_cnn_model import (   # noqa: F401  (registers model)
-    MAPPOCNNModelCentralizedCritic,
-    HarvestCentralizedCriticCallback,
+from models.ippo_cnn_model import (   # noqa: F401  (registers model)
+    IPPOCNNModelDecentralizedCritic,
+    HarvestIPPOPostprocessCallback,
 )
 
 
@@ -62,7 +57,6 @@ def policy_mapping_fn(agent_id, episode, worker, **kwargs):
 
 
 def build_algo_config(config: dict) -> PPOConfig:
-    """Translate the YAML config into an RLlib PPOConfig."""
     yaml_env = config.get("env_config", {})
     env_config = {
         "grid_height":           yaml_env.get("grid_height", 8),
@@ -79,15 +73,12 @@ def build_algo_config(config: dict) -> PPOConfig:
 
     register_env("harvest", lambda cfg: create_env(cfg))
 
-    # Probe a temporary env for spaces — same pattern as RP-5/train_ippo.py.
     probe = create_env(env_config)
     obs_space = probe.observation_space_dict[probe.agent_ids[0]]
     act_space = probe.action_space_dict[probe.agent_ids[0]]
-    # No probe.close() — HarvestEnv has no resources to release.
 
-    # PolicySpec without postprocess_fn: that key is ignored by PPOTorchPolicy
-    # in RLlib 2.35. The centralized-critic global_state injection is wired via
-    # HarvestCentralizedCriticCallback below (see .callbacks(...)).
+    # IPPO PolicySpec: no postprocess_fn. Default PPO postprocessing computes
+    # GAE on SampleBatch.OBS, which already carries the agent's local patch.
     policies = {
         "shared_policy": PolicySpec(
             policy_class=None,
@@ -97,14 +88,12 @@ def build_algo_config(config: dict) -> PPOConfig:
         )
     }
 
-    mappo_cfg = config["mappo_config"]
+    ippo_cfg = config["mappo_config"]  # section name kept for loader parity
     model_cfg_in = config["model_config"]["custom_model_config"]
 
     model_config = {
-        "custom_model": "mappo_cnn_centralized",
+        "custom_model": "ippo_cnn_decentralized",
         "custom_model_config": {
-            "global_state_height": model_cfg_in.get("global_state_height", env_config["grid_height"]),
-            "global_state_width":  model_cfg_in.get("global_state_width",  env_config["grid_width"]),
             "actor_conv_specs":   [tuple(s) for s in model_cfg_in.get("actor_conv_specs",  [(16, 3), (32, 3)])],
             "actor_hiddens":      model_cfg_in.get("actor_hiddens",      [128, 64]),
             "actor_activation":   model_cfg_in.get("actor_activation",   "tanh"),
@@ -120,35 +109,35 @@ def build_algo_config(config: dict) -> PPOConfig:
     algo_config = (
         PPOConfig()
         .environment(env="harvest", env_config=env_config)
-        .framework(framework=mappo_cfg.get("framework", "torch"))
+        .framework(framework=ippo_cfg.get("framework", "torch"))
         .training(
-            lr=mappo_cfg.get("lr", 5e-4),
-            gamma=mappo_cfg.get("gamma", 0.99),
-            lambda_=mappo_cfg.get("lambda_", 0.95),
-            num_sgd_iter=mappo_cfg.get("num_sgd_iter", 10),
-            sgd_minibatch_size=mappo_cfg.get("sgd_minibatch_size", 32768),
-            train_batch_size=mappo_cfg.get("train_batch_size", 32768),
-            clip_param=mappo_cfg.get("clip_param", 0.2),
-            vf_clip_param=mappo_cfg.get("vf_clip_param", 10.0),
-            grad_clip=mappo_cfg.get("grad_clip", 1.0),
-            entropy_coeff=mappo_cfg.get("entropy_coeff", 0.02),
-            vf_loss_coeff=mappo_cfg.get("vf_loss_coeff", 1.0),
+            lr=ippo_cfg.get("lr", 5e-4),
+            gamma=ippo_cfg.get("gamma", 0.99),
+            lambda_=ippo_cfg.get("lambda_", 0.95),
+            num_sgd_iter=ippo_cfg.get("num_sgd_iter", 10),
+            sgd_minibatch_size=ippo_cfg.get("sgd_minibatch_size", 32768),
+            train_batch_size=ippo_cfg.get("train_batch_size", 32768),
+            clip_param=ippo_cfg.get("clip_param", 0.2),
+            vf_clip_param=ippo_cfg.get("vf_clip_param", 10.0),
+            grad_clip=ippo_cfg.get("grad_clip", 1.0),
+            entropy_coeff=ippo_cfg.get("entropy_coeff", 0.02),
+            vf_loss_coeff=ippo_cfg.get("vf_loss_coeff", 1.0),
             vf_share_layers=False,
             use_critic=True,
             use_gae=True,
             model=model_config,
         )
         .rollouts(
-            num_rollout_workers=mappo_cfg.get("num_rollout_workers", 3),
-            num_envs_per_worker=mappo_cfg.get("num_envs_per_worker", 1),
-            rollout_fragment_length=mappo_cfg.get("rollout_fragment_length", 200),
-            batch_mode=mappo_cfg.get("batch_mode", "complete_episodes"),
-            sample_timeout_s=mappo_cfg.get("sample_timeout_s", 120),
-            observation_filter=mappo_cfg.get("observation_filter", "MeanStdFilter"),
+            num_rollout_workers=ippo_cfg.get("num_rollout_workers", 3),
+            num_envs_per_worker=ippo_cfg.get("num_envs_per_worker", 1),
+            rollout_fragment_length=ippo_cfg.get("rollout_fragment_length", 200),
+            batch_mode=ippo_cfg.get("batch_mode", "complete_episodes"),
+            sample_timeout_s=ippo_cfg.get("sample_timeout_s", 120),
+            observation_filter=ippo_cfg.get("observation_filter", "MeanStdFilter"),
         )
         .resources(
-            num_gpus=mappo_cfg.get("num_gpus", 1),
-            num_gpus_per_worker=mappo_cfg.get("num_gpus_per_worker", 0),
+            num_gpus=ippo_cfg.get("num_gpus", 1),
+            num_gpus_per_worker=ippo_cfg.get("num_gpus_per_worker", 0),
         )
         .multi_agent(
             policies=policies,
@@ -156,17 +145,17 @@ def build_algo_config(config: dict) -> PPOConfig:
             policies_to_train=["shared_policy"],
         )
         .evaluation(
-            evaluation_interval=mappo_cfg.get("evaluation_interval", 10),
-            evaluation_duration=mappo_cfg.get("evaluation_duration", 5),
+            evaluation_interval=ippo_cfg.get("evaluation_interval", 10),
+            evaluation_duration=ippo_cfg.get("evaluation_duration", 5),
             evaluation_num_workers=0,
-            evaluation_duration_unit=mappo_cfg.get("evaluation_duration_unit", "episodes"),
+            evaluation_duration_unit=ippo_cfg.get("evaluation_duration_unit", "episodes"),
             evaluation_config={
                 "explore": False,
                 "batch_mode": "complete_episodes",
                 "env_config": dict(env_config),
             },
         )
-        .callbacks(HarvestCentralizedCriticCallback)
+        .callbacks(HarvestIPPOPostprocessCallback)
     )
     return algo_config
 
@@ -192,7 +181,7 @@ def train(config_path: str, num_iterations: int, checkpoint_freq: int, resume: s
 
     training_cfg = config.get("training", {})
     run_config = air.RunConfig(
-        name="mappo_harvest",
+        name="ippo_harvest",
         storage_path=str(results_dir),
         stop={"training_iteration": num_iterations},
         checkpoint_config=air.CheckpointConfig(
@@ -221,8 +210,8 @@ def train(config_path: str, num_iterations: int, checkpoint_freq: int, resume: s
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Train MAPPO on HarvestEnv")
-    parser.add_argument("--config", type=str, default="configs/harvest_mappo_team.yaml")
+    parser = argparse.ArgumentParser(description="Train IPPO on HarvestEnv")
+    parser.add_argument("--config", type=str, default="configs/harvest_ippo_team.yaml")
     parser.add_argument("--iterations", type=int, default=200)
     parser.add_argument("--checkpoint-freq", type=int, default=25)
     parser.add_argument("--resume", type=str, default=None)
@@ -231,13 +220,10 @@ def main():
 
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-
-    # Force standard TraCI off — HarvestEnv doesn't use TraCI but mirroring
-    # train_ippo.py's defensive pop in case the env var leaks in.
     os.environ.pop("LIBSUMO_AS_TRACI", None)
 
     print("=" * 80)
-    print("MAPPO Training on HarvestEnv (CENTRALIZED CRITIC, CNN ENCODER)")
+    print("IPPO Training on HarvestEnv (DECENTRALIZED CRITIC, CNN ENCODER)")
     print("=" * 80)
     print(f"Config:           {args.config}")
     print(f"Iterations:       {args.iterations}")

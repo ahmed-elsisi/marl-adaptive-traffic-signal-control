@@ -31,9 +31,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from gymnasium.spaces import Box
+from ray.rllib.algorithms.callbacks import DefaultCallbacks
 from ray.rllib.models import ModelCatalog
 from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
 from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.policy.view_requirement import ViewRequirement
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.typing import ModelConfigDict, TensorType
 
@@ -142,6 +145,24 @@ class MAPPOCNNModelCentralizedCritic(TorchModelV2, nn.Module):
 
         self._last_local_obs: Optional[TensorType] = None
         self._last_global_state: Optional[TensorType] = None
+        self._last_step_normalized: Optional[TensorType] = None
+
+        # Declare custom columns as view requirements so RLlib's training-batch
+        # assembly keeps them (otherwise it strips columns it doesn't know about).
+        # HarvestCentralizedCriticCallback populates both from infos at
+        # on_postprocess_trajectory time.
+        self.view_requirements["global_state"] = ViewRequirement(
+            data_col="global_state",
+            space=Box(low=0, high=255, shape=(self.global_h, self.global_w, self.obs_c), dtype=np.uint8),
+            used_for_training=True,
+            used_for_compute_actions=False,  # not in rollout per-step batches
+        )
+        self.view_requirements["step_normalized"] = ViewRequirement(
+            data_col="step_normalized",
+            space=Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
+            used_for_training=True,
+            used_for_compute_actions=False,
+        )
 
     def _build_actor(self):
         self.actor_conv, flat = _build_conv_stack(
@@ -166,7 +187,7 @@ class MAPPOCNNModelCentralizedCritic(TorchModelV2, nn.Module):
             self.obs_c, self.global_h, self.global_w, self.critic_conv_specs
         )
         act_fn = nn.Tanh if self.critic_activation == "tanh" else nn.ReLU
-        layers, prev = [], flat
+        layers, prev = [], flat + 1  # +1 for the step_normalized scalar concat
         for h in self.critic_hiddens:
             lin = nn.Linear(prev, h)
             if self.use_orthogonal_init:
@@ -196,6 +217,17 @@ class MAPPOCNNModelCentralizedCritic(TorchModelV2, nn.Module):
         else:
             self._last_global_state = None
 
+        # Cache step_normalized (scalar in [0, 1] per sample) for the critic.
+        if "step_normalized" in input_dict:
+            sn = input_dict["step_normalized"]
+            if sn.dtype != torch.float32:
+                sn = sn.float()
+            if sn.dim() == 1:
+                sn = sn.unsqueeze(-1)  # ensure (N, 1)
+            self._last_step_normalized = sn
+        else:
+            self._last_step_normalized = None
+
         feat = self.actor_conv(local).flatten(start_dim=1)
         logits = self.actor_head(feat)
         return logits, state
@@ -215,6 +247,18 @@ class MAPPOCNNModelCentralizedCritic(TorchModelV2, nn.Module):
             return torch.zeros(1, dtype=torch.float32)
 
         feat = self.critic_conv(gs).flatten(start_dim=1)
+
+        # Concatenate step_normalized scalar to the CNN features. When not
+        # available (e.g. rollout-time per-step value calls without the
+        # postprocessing column), fall back to zeros — matches the rollout
+        # behaviour and trains the critic to ignore the time signal in that
+        # path.
+        if self._last_step_normalized is not None and self._last_step_normalized.shape[0] == feat.shape[0]:
+            step_feat = self._last_step_normalized.to(feat.device).to(feat.dtype)
+        else:
+            step_feat = torch.zeros(feat.shape[0], 1, dtype=feat.dtype, device=feat.device)
+        feat = torch.cat([feat, step_feat], dim=1)
+
         values = self.critic_head(feat)
         if self.use_value_normalization and self.training:
             values = values * self.value_std + self.value_mean
@@ -295,10 +339,13 @@ def harvest_centralized_critic_postprocessing(
         return sample_batch
 
     extracted = []
+    extracted_step = []
     for inf in infos:
         gs = None
+        sn = 0.0
         if isinstance(inf, dict):
             gs = inf.get("global_state", None)
+            sn = float(inf.get("step_normalized", 0.0))
         if gs is None:
             gs = _np.zeros(default_shape, dtype=_np.uint8)
         else:
@@ -308,9 +355,41 @@ def harvest_centralized_critic_postprocessing(
                 # out the slot so the model's eval fallback kicks in.
                 gs = _np.zeros(default_shape, dtype=_np.uint8)
         extracted.append(gs)
+        extracted_step.append(sn)
 
     sample_batch["global_state"] = _np.stack(extracted, axis=0)
+    sample_batch["step_normalized"] = _np.asarray(extracted_step, dtype=_np.float32).reshape(-1, 1)
     return sample_batch
 
 
 ModelCatalog.register_custom_model("mappo_cnn_centralized", MAPPOCNNModelCentralizedCritic)
+
+
+# ── Callback wiring (the part that actually fires in RLlib 2.35) ─────────────
+
+
+class HarvestCentralizedCriticCallback(DefaultCallbacks):
+    """Injects info['global_state'] into the SampleBatch under the
+    'global_state' column.
+
+    Why a callback: PolicySpec.config["postprocess_fn"] is ignored by
+    PPOTorchPolicy in RLlib 2.35 (only the `build_policy_class`-built
+    policies consume it). `on_postprocess_trajectory` is the documented hook
+    PPO actually invokes, fired after PPO's GAE computation but before the
+    batch reaches the loss function.
+    """
+
+    def on_postprocess_trajectory(
+        self,
+        *,
+        worker,
+        episode,
+        agent_id,
+        policy_id,
+        policies,
+        postprocessed_batch,
+        original_batches,
+        **kwargs,
+    ) -> None:
+        policy = policies.get(policy_id)
+        harvest_centralized_critic_postprocessing(policy, postprocessed_batch)

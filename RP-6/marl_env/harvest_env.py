@@ -289,6 +289,10 @@ class HarvestEnv(MultiAgentEnv):
             "position": tuple(self.agent_positions[agent_id]),
             "current_apple_count_global": int(self.apple_grid.sum()),
             "global_state": self._get_global_state(),
+            # Normalized step in [0, 1]. Both MAPPO and IPPO critics consume
+            # this to recover the remaining-horizon component of V(s_t), which
+            # the spatial RGB state alone can't encode.
+            "step_normalized": float(self.step_count) / float(self.episode_length),
         }
 
     # ── Debug rendering ───────────────────────────────────────────────────────

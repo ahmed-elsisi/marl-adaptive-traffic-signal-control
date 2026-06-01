@@ -23,8 +23,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from gymnasium.spaces import Box
+from ray.rllib.algorithms.callbacks import DefaultCallbacks
 from ray.rllib.models import ModelCatalog
 from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
+from ray.rllib.policy.sample_batch import SampleBatch
+from ray.rllib.policy.view_requirement import ViewRequirement
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.typing import ModelConfigDict, TensorType
 
@@ -110,6 +114,17 @@ class IPPOCNNModelDecentralizedCritic(TorchModelV2, nn.Module):
             self.value_momentum = 0.99
 
         self._last_obs: TensorType = None  # cached for value_function()
+        self._last_step_normalized: TensorType = None  # cached scalar for critic
+
+        # step_normalized is injected via HarvestIPPOPostprocessCallback at
+        # on_postprocess_trajectory. View requirement keeps it in the training
+        # batch (otherwise it's stripped).
+        self.view_requirements["step_normalized"] = ViewRequirement(
+            data_col="step_normalized",
+            space=Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
+            used_for_training=True,
+            used_for_compute_actions=False,
+        )
 
     # ── Network construction ──────────────────────────────────────────────────
 
@@ -139,7 +154,7 @@ class IPPOCNNModelDecentralizedCritic(TorchModelV2, nn.Module):
         )
 
         act_fn = nn.Tanh if self.critic_activation == "tanh" else nn.ReLU
-        layers, prev = [], flat
+        layers, prev = [], flat + 1  # +1 for the step_normalized scalar concat
         for h in self.critic_hiddens:
             lin = nn.Linear(prev, h)
             if self.use_orthogonal_init:
@@ -180,6 +195,17 @@ class IPPOCNNModelDecentralizedCritic(TorchModelV2, nn.Module):
         x = self._normalize_image_obs(obs_nhwc)
         self._last_obs = x
 
+        # Cache step_normalized for the critic (scalar in [0, 1] per sample).
+        if "step_normalized" in input_dict:
+            sn = input_dict["step_normalized"]
+            if sn.dtype != torch.float32:
+                sn = sn.float()
+            if sn.dim() == 1:
+                sn = sn.unsqueeze(-1)
+            self._last_step_normalized = sn
+        else:
+            self._last_step_normalized = None
+
         feat = self.actor_conv(x)
         feat = feat.flatten(start_dim=1)
         logits = self.actor_head(feat)
@@ -191,6 +217,16 @@ class IPPOCNNModelDecentralizedCritic(TorchModelV2, nn.Module):
             return torch.zeros(1, dtype=torch.float32)
         feat = self.critic_conv(self._last_obs)
         feat = feat.flatten(start_dim=1)
+
+        # Concatenate step_normalized scalar. Falls back to zeros at rollout
+        # time (when on_postprocess_trajectory hasn't fired yet) so the
+        # critic at least gets a dimensional input.
+        if self._last_step_normalized is not None and self._last_step_normalized.shape[0] == feat.shape[0]:
+            step_feat = self._last_step_normalized.to(feat.device).to(feat.dtype)
+        else:
+            step_feat = torch.zeros(feat.shape[0], 1, dtype=feat.dtype, device=feat.device)
+        feat = torch.cat([feat, step_feat], dim=1)
+
         values = self.critic_head(feat)
         if self.use_value_normalization and self.training:
             values = values * self.value_std + self.value_mean
@@ -218,3 +254,41 @@ class IPPOCNNModelDecentralizedCritic(TorchModelV2, nn.Module):
 
 
 ModelCatalog.register_custom_model("ippo_cnn_decentralized", IPPOCNNModelDecentralizedCritic)
+
+
+# ── Callback wiring (parallels MAPPO's centralized callback) ─────────────────
+
+
+class HarvestIPPOPostprocessCallback(DefaultCallbacks):
+    """Injects step_normalized from infos into the SampleBatch.
+
+    IPPO's critic doesn't consume global_state, but it does benefit from the
+    time signal (the spatial RGB local obs alone can't encode remaining
+    horizon, which dominates the value target's variance). Parallels
+    HarvestCentralizedCriticCallback's step injection so the MAPPO/IPPO
+    comparison stays fair on time-conditioning.
+    """
+
+    def on_postprocess_trajectory(
+        self,
+        *,
+        worker,
+        episode,
+        agent_id,
+        policy_id,
+        policies,
+        postprocessed_batch,
+        original_batches,
+        **kwargs,
+    ) -> None:
+        import numpy as _np
+        batch_len = len(postprocessed_batch[SampleBatch.OBS])
+        infos = postprocessed_batch.get(SampleBatch.INFOS)
+        if infos is None or len(infos) == 0:
+            postprocessed_batch["step_normalized"] = _np.zeros((batch_len, 1), dtype=_np.float32)
+            return
+        steps = [
+            float(inf.get("step_normalized", 0.0)) if isinstance(inf, dict) else 0.0
+            for inf in infos
+        ]
+        postprocessed_batch["step_normalized"] = _np.asarray(steps, dtype=_np.float32).reshape(-1, 1)

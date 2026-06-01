@@ -113,7 +113,7 @@ reward_config:
   waiting_time_weight: -1.0
   throughput_weight: 0.1
   pressure_weight: -0.4
-  neighbor_pressure_weight: 0.0    # IPPO: no shared/neighbor reward (MAPPO uses -0.5)
+  neighbor_pressure_weight: 0.0    # IPPO: no shared/neighbor reward (MAPPO uses -0.4)
   spatial_discount: 0.9            # unused while neighbor_pressure_weight=0
   clip_min: -3.0
   clip_max: 1.0

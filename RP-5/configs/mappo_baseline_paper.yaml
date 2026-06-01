@@ -21,10 +21,10 @@
 #
 # WHAT CHANGES vs mappo_config_v2.yaml (algorithm only — env is identical):
 #   lr:                5e-4  → 7e-4
-#   num_sgd_iter:      10    → 15
+#   num_sgd_iter:      15    → 15    (unchanged — v2 raised to 15 on 2026-05-08)
 #   entropy_coeff:     0.02  → 0.015
 #   grad_clip:         1.0   → 10.0   (paper max_grad_norm = 10)
-#   actor_hiddens:     [128, 64]      → [512, 512]
+#   actor_hiddens:     [256, 256]      → [512, 512]   (v2 widened to [256,256] on 2026-05-08)
 #   critic_hiddens:    [512, 256, 128] → [512, 512]
 #   actor_activation:  tanh  → relu
 #   critic_activation: relu  → relu (already matched)

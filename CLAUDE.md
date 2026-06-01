@@ -241,7 +241,7 @@ Actor activation is configurable via `actor_activation` in the model config (`mo
   - **v2 d4f9d** (47-h legacy): trained at `min_red=1`, actor `[128, 64]`, neighbour `-0.5`. Three changes vs upcoming v2 run.
   - **paper_baseline 4acfd** (47-h legacy): trained at `min_red=1`, neighbour `-0.5`. Two changes vs upcoming run (architecture unchanged).
   - **IPPO 967fc** (47-h legacy, finished 2026-05-08): trained at `min_red=3` ✓, but actor was still `[128, 64]`. One change (actor) vs upcoming IPPO run.
-  None of the legacy checkpoints are valid baselines for the new comparison. The next set of three runs (v2 + paper_baseline + IPPO, all with the 2026-05-08 configs) becomes the new Phase-1 baseline. **Total compute commitment for the new baseline: ~150-165 hours ≈ 6-7 days, sequential on the single GPU** (revised up from ~141 hr after `num_sgd_iter` was raised to 15 in v2 + IPPO).
+  None of the legacy checkpoints are valid baselines for the new comparison; they now live in `reference/legacy/`. **Two of the three new baseline runs are complete** (see Phase-1 status below): v2 `fa6ad` (MAPPO) and IPPO `adfef`, both with the 2026-05-08 configs (`min_red=3`, actor [256,256], `num_sgd_iter 15`), stored in `reference/`. The third — paper_baseline — is in progress as of 2026-06-02 (CPU-pinned, `num_gpus: 0`, running in parallel with the Phase-2 Harvest matrix).
 
 ### Training Configuration
 
@@ -316,28 +316,43 @@ Outperformed both heuristic baselines:
 - Metrics: Network waiting time, throughput, queue lengths
 - Analysis: Coordination value = (MAPPO performance - IPPO performance)
 
-**Phase-1 status (as of 2026-05-08):**
-- ✅ IPPO 200-iter run finished: run id `967fc`, 47.72 h wall-clock, final
-  `episode_reward_mean = -57.87`. Trained at `min_red=3` (post-2026-05-06
-  plumbing patch). Checkpoints in `RP-5/results/ippo_traffic_control/PPO_sumo_traffic_967fc_00000_0_2026-05-06_00-44-26/`.
-  **Now legacy as of the 2026-05-08 actor widening — `967fc` used actor `[128, 64]`,
-  the upcoming IPPO re-run uses `[256, 256]`.** Kept for reference / inspection only.
-- ⚠ **First IPPO-vs-MAPPO eval (2026-05-08) is NOT apples-to-apples.** The
-  MAPPO checkpoint used (v2 d4f9d) was trained with `min_red=0` (no all-red
-  clearance), while the new IPPO checkpoint trained with `min_red=3`, and
-  evaluation always applies `min_red=3` (per `evaluate.py`'s YAML plumbing).
-  This means MAPPO is at a structural disadvantage at eval time — every phase
-  change costs 3 sim-sec of all-red the policy never trained against. Eval-time
-  numbers (IPPO 9.53 s avg wait, MAPPO 14.14 s) cannot be cited as "IPPO beats
-  MAPPO" until the v2 + paper_baseline re-runs at `min_red=3` land. See
-  `RP-5/metrics/IPPO/` and `RP-5/metrics/MAPPO/` for the unbalanced eval data.
-- ✅ What CAN be cited from this eval: IPPO is competitive with the
-  Max-Pressure heuristic (9.53 s vs 8.05 s avg wait, +18% gap) and crushes
-  Fixed-Time (38.25 s). IPPO's standalone numbers are clean (train env =
-  eval env).
-- ⏳ Outstanding: re-run v2 MAPPO + paper_baseline at `min_red=3` (~47 h each)
-  before any IPPO-vs-MAPPO claim is made in the writeup. Sequential on the
-  single GPU.
+**Phase-1 status (as of 2026-06-02):**
+- ✅ **New valid baseline runs complete, stored in `reference/`** (both at
+  `min_red=3`, actor [256,256] tanh, critic [512,256,128], `num_sgd_iter 15`,
+  so the comparison is now fully apples-to-apples):
+  - **v2 `fa6ad`** (MAPPO, `reference/v2 256x256 - reworked - fa6ad/`): 200 iters,
+    48.3 h, final `episode_reward_mean = -49.62`, last-10 mean **-49.76 ± 0.39**,
+    expl_var 0.906. Neighbour `-0.4`, centralized critic.
+  - **IPPO `adfef`** (`reference/ippo 256x256 - reworked - adfef/`): 200 iters,
+    47.2 h, final `-51.75`, last-10 mean **-55.75 ± 8.81**, expl_var 0.906.
+    Neighbour `0.0`, decentralized critic. Same actor/critic/min_red/sgd_iter as v2.
+  - Legacy `d4f9d`/`4acfd`/`967fc` moved to `reference/legacy/` (inspection only;
+    `967fc` used the old [128,64] actor, so it is not a valid comparator).
+- ✅ **Headline Phase-1 result — coordination value ≈ 0 (in-distribution).**
+  Across 5 deterministic eval seeds (42–46), MAPPO vs IPPO are statistically
+  indistinguishable on every traffic-performance metric: avg wait p=0.236
+  (MAPPO 9.92±0.65 s vs IPPO 10.34±0.31 s), max halt p=0.74, avg halt p=0.53,
+  arrivals p=0.55. The **only** significant difference is that MAPPO performs
+  ~21 more phase switches per episode (1391±12 vs 1370±8, p=0.015) with no
+  performance benefit. Interpretation: traffic is the pure-coordination end of
+  the spectrum where incentives are already aligned, so the centralized critic +
+  neighbour reward buy essentially nothing at convergence — exactly the baseline
+  that makes the Phase-2 social-dilemma contrast meaningful. Coordination value
+  = MAPPO − IPPO ≈ 0 here. (Eval/sweep artifacts: `RP-5/metrics/cmp_MAPPO_fa6ad/`,
+  `cmp_IPPO_adfef/`.)
+  - Methodology notes: the single-seed (seed 42) eval alone showed IPPO
+    marginally ahead — a seed artifact; always cite the multi-seed result. The
+    SUMO `--seed` is hardcoded to 42 in `sumo_env.py:289`; the 5-seed sweep was
+    done by temporarily plumbing the seed (reverted afterward). Demand is
+    deterministic (fixed-period flows), so the eval seed only perturbs
+    car-following micro-behaviour — the "no significant difference" is robust for
+    this demand scenario at n=5.
+- ✅ Standalone baselines still hold: IPPO is competitive with Max-Pressure
+  (~9.5 s vs 8.05 s avg wait) and crushes Fixed-Time (38.25 s).
+- ⏳ **paper_baseline run in progress (2026-06-02):** the Hanabi-preset [512,512]
+  comparator, running on CPU (`num_gpus: 0`, ~49–50 h) in parallel with the
+  Phase-2 Harvest matrix on the GPU. Completes the three-way Phase-1 comparison
+  (v2 vs IPPO vs paper-baseline). Run with `--iterations 200` to match fa6ad/adfef.
 
 ### Phase 2: Social Dilemma Environment (Weeks 4-9)
 
@@ -385,39 +400,55 @@ critic + reward simultaneously). **Population-based training: dropped** — woul
 multiply the matrix 4-8× and Phase 1 didn't use it, so symmetric experiments are
 more valuable than asymmetric depth.
 
-**Phase-2 status (as of 2026-05-08):**
-- ✅ Week 4 done: env + obs builder + reward + metrics + smoke tests landed in `RP-6/`.
-  All three Week-4 smoke tests pass (random rollout, dilemma-core invariant, reward
-  blending). See `RP-6/tests/test_harvest_smoke.py`.
-- ✅ Week 5 *code* done: CNN actor + centralized CNN critic on full grid (not
-  concat-of-views), `harvest_centralized_critic_postprocessing` hook lifting
-  `info['global_state']` into the SampleBatch, IPPO CNN model with decentralized
-  critic, training entry point `train_mappo_harvest.py`, and the team-shared
-  smoke config `configs/harvest_mappo_team.yaml`. All five CPU shape tests pass
-  (`RP-6/tests/test_models_shape.py`). `harvest_env.py:_build_info` was extended
-  to include `global_state` in every agent's info dict — Week-4 smoke suite
-  re-run, no regression.
-- ✅ Week 5 *training-loop verification done* (2026-05-08): 1-iter MAPPO-Harvest
-  smoke training completed in **63.78 s wall-clock** (one-time setup heavy;
-  steady-state ~30-50 s/iter). Iter 1 produced 33 episodes of length 1000,
-  `episode_reward_mean = +458.21` under `shared_reward_weight=1.0`, checkpoint
-  written to `RP-6/results/mappo_harvest/PPO_harvest_<id>/checkpoint_000000`.
-  All Week-5 integration risks dispatched: RLlib 2.35 + custom CNN model
-  registration, MeanStdFilter on uint8 image obs, postprocessing hook firing in
-  real rollouts, centralized critic forward pass on global state, env_config
-  plumbing all confirmed. **Wall-clock projection updated:** 200-iter Harvest
-  run ≈ ~3 hours (vs SUMO's ~47 hours); full 33-run Phase-2 matrix ≈ ~4 days
-  (vs ~9-10 days originally projected).
-- ⚠ **Cosmetic post-fit issue on Windows**: after `tuner.fit()` succeeds and
-  writes the checkpoint, Ray Tune's `ExperimentAnalysis` triggers a Windows
-  access violation in `pandas/pyarrow/string_arrow.py` while reading the
-  progress CSV back. Training output is intact (checkpoint, progress.csv,
-  params.json all present); only the script's exit code is non-zero. Decision
-  2026-05-08: live with it (option (c) — don't pin pyarrow/pandas, don't wrap
-  in subprocess). Future runs will exit non-zero after success; verify by
-  inspecting the result dir, not the exit code.
-- ⏳ Weeks 6-9: IPPO Harvest smoke + reward-sweep wiring + full 30-run matrix
-  + evaluation.
+**Phase-2 status (as of 2026-06-02):**
+- ✅ Week 4 done: env + obs builder + reward + metrics + smoke tests in `RP-6/`
+  (`tests/test_harvest_smoke.py`, all pass — random rollout, dilemma-core
+  invariant, reward blending).
+- ✅ Week 5 done: CNN actor + centralized CNN critic on the full grid (not
+  concat-of-views), IPPO CNN model with decentralized critic,
+  `train_mappo_harvest.py`, the team smoke config. CPU shape tests pass
+  (`tests/test_models_shape.py`). `harvest_env.py:_build_info` exposes
+  `global_state` (and `step_normalized`) in every agent's info dict.
+- ✅ Week 6 done: all **six** sweep configs
+  (`harvest_{mappo,ippo}_{individual,mixed,team}.yaml`, `shared_reward_weight`
+  0.0/0.5/1.0), `train_ippo_harvest.py`, the 30-run matrix driver `run_matrix.py`,
+  the FixedGreedy baseline `run_fixed_greedy.py`, `evaluate_harvest.py`,
+  `plot_harvest_eval.py`, the behaviour visualizer `visualize_harvest.py`, and
+  `tests/smoke_new_configs.py` (all six configs build).
+- 🐛 **Two critic bugs found and fixed (2026-06-02) — the earlier matrix in
+  `RP-6/results-old/` is INVALID and must not be cited:**
+  1. **Centralized-critic `global_state` never reached the critic.** The
+     injection was attached via `PolicySpec config={"postprocess_fn": ...}`, a key
+     `PPOTorchPolicy` **silently ignores** in RLlib 2.35 — so MAPPO trained with
+     all-zero `global_state` (the centralized critic was effectively blind; the
+     earlier Week-5 "postprocessing hook firing confirmed" note was wrong). Now
+     rewired via `HarvestCentralizedCriticCallback.on_postprocess_trajectory` +
+     `.callbacks(...)`; mirrored for IPPO via `HarvestIPPOPostprocessCallback`.
+     **Verified live**: the callback fires and injects non-zero `global_state`
+     (max=255) in a real train step.
+  2. **`vf_clip_param: 10.0` zeroed the critic gradient** (Harvest returns are
+     O(250–950)). Raised to **10000.0** across all six configs.
+  - Also added a `step_normalized` time feature to both critics (ViewRequirement
+    + concat, symmetric across MAPPO/IPPO so the comparison stays fair). The fix
+    **changed the model architecture**, so `results-old/` checkpoints can no
+    longer be loaded into the current models.
+- ✅ All checks pass: env shapes, both CNN forward passes, all six configs build,
+  and the centralized-critic data path verified end-to-end.
+- 🚀 **Full 30-run RL matrix RUNNING (2026-06-02)** via `python run_matrix.py`
+  (idempotent; stamps under `results/.matrix_done/`; tolerates the Windows
+  pyarrow crash by checking for a written checkpoint, not the exit code), in
+  parallel with the CPU paper_baseline. ~200 iters/cell, ~3 h/cell, ~3.5–4 days
+  for the 30 RL cells. FixedGreedy (3 cells) is a separate
+  `python run_fixed_greedy.py --episodes 5 --seed 42`. **Canary**: confirm the
+  first cell's `vf_explained_var` climbs (the one-time proof the critic fix holds)
+  before trusting the remaining 29.
+- ⚠ **Cosmetic post-fit Windows crash persists**: after `tuner.fit()` writes the
+  checkpoint, Ray's `ExperimentAnalysis`/pyarrow triggers a Windows access
+  violation; checkpoint/progress.csv/params.json are intact and only the exit code
+  is non-zero (segfault/0xC0000005). Verify success by inspecting the result dir.
+- ⏳ Remaining (Weeks 7–9): matrix completion → `evaluate_harvest.py` over all
+  checkpoints → `plot_harvest_eval.py` + `visualize_harvest.py` → Welch t-tests on
+  the four metrics → Phase-2 results (not yet available).
 
 ### Phase 3: Cross-Environment Analysis (Weeks 10-15)
 
@@ -471,23 +502,31 @@ Applied/
 │   ├── logs/
 │   │   └── tensorboard/               # TensorBoard training logs
 │   └── tests/                         # Validation and setup scripts
-├── RP-6/                              # Semester 2 Phase 2 (Harvest social dilemma) — NEW
-│   ├── train_mappo_harvest.py        # MAPPO training entry point (CNN + centralized critic + postprocess hook)
+├── RP-6/                              # Semester 2 Phase 2 (Harvest social dilemma)
+│   ├── train_mappo_harvest.py        # MAPPO entry (CNN + centralized critic; global_state via callback)
+│   ├── train_ippo_harvest.py         # IPPO entry (CNN + decentralized critic)
+│   ├── run_matrix.py                 # 30-run matrix driver (idempotent; .matrix_done stamps; tolerates pyarrow crash)
+│   ├── run_fixed_greedy.py           # FixedGreedy heuristic baseline (3 runs)
+│   ├── evaluate_harvest.py           # Eval a checkpoint (MAPPO or IPPO); MeanStdFilter applied; metric CSVs
+│   ├── plot_harvest_eval.py          # Static charts from eval CSVs (apples-on-grid, metric bars, per-agent)
+│   ├── visualize_harvest.py          # Behaviour GIFs: per-policy + 2×2 panels (--auto / --checkpoint / --greedy)
+│   ├── Harvest_Phase2_Explained.pdf  # Non-specialist explainer of Phase 2 (dilemma, files, matrix, metrics)
 │   ├── marl_env/
 │   │   ├── harvest_env.py             # HarvestEnv (RLlib MultiAgentEnv); 12×8 grid, 4 agents, Discrete(6)
-│   │   ├── harvest_obs.py             # 15×15×3 RGB egocentric observation builder
-│   │   ├── harvest_reward.py          # Sparse +1 per apple + shared_reward_weight blend
+│   │   ├── harvest_obs.py             # 15×15×3 RGB egocentric obs + render_global_rgb (full-grid RGB)
+│   │   ├── harvest_reward.py          # Sparse +1 per apple + shared_reward_weight blend (0.0/0.5/1.0)
 │   │   └── harvest_metrics.py         # Gini, sustainability, equality, time-to-depletion + CSV writers
 │   ├── models/
-│   │   ├── mappo_cnn_model.py         # MAPPOCNNModelCentralizedCritic + harvest_centralized_critic_postprocessing hook
-│   │   └── ippo_cnn_model.py          # IPPOCNNModelDecentralizedCritic (no postprocess hook)
-│   ├── configs/
-│   │   └── harvest_mappo_team.yaml    # Smoke config (shared_reward_weight=1.0); 5 more in Week 6
+│   │   ├── mappo_cnn_model.py         # MAPPOCNNModelCentralizedCritic + HarvestCentralizedCriticCallback
+│   │   └── ippo_cnn_model.py          # IPPOCNNModelDecentralizedCritic + HarvestIPPOPostprocessCallback
+│   ├── configs/                       # harvest_{mappo,ippo}_{individual,mixed,team}.yaml (6 configs; w=0.0/0.5/1.0)
 │   ├── tests/
 │   │   ├── test_harvest_smoke.py      # Week-4: random-rollout + dilemma-core + reward-blend
-│   │   └── test_models_shape.py       # Week-5: CPU shape-checks for env + both CNN models + postprocess hook
-│   ├── results/                       # Ray Tune output (created on first Phase-2 run)
-│   └── metrics/                       # Per-episode evaluation outputs (Phase-1-CSV-compatible)
+│   │   ├── test_models_shape.py       # Week-5: CPU shape-checks for env + both CNN models + postprocessing
+│   │   └── smoke_new_configs.py       # Week-6: all six configs build a PPOConfig
+│   ├── results/                       # Ray Tune output (gitignored); matrix writes here
+│   ├── results-old/                   # INVALID prior matrix (pre-critic-fix); gitignored, kept for reference only
+│   └── metrics/                       # Eval CSVs + plots + behaviour GIFs (metrics/viz/)
 ├── shared/                            # Phase-3 cross-env analysis prep — NEW
 │   └── (plot_helpers.py, cross_env_synthesis.py — both built in Phase-2 Week 9)
 └── Emergent Social Behaviour... Interim.pdf  # Interim report (Semester 1)
@@ -850,6 +889,6 @@ When helping with this project:
 3. **Recognize CTDE is central** - Centralized training, decentralized execution
 4. **Traffic is cooperative** - Network effects align incentives
 5. **Dilemmas create conflict** - Individual gain from exploitation
-6. **S2 Phase-2 env is selected** — Harvest (Leibo 2017), built from scratch in `RP-6/`. Detailed design: `~/.claude/plans/while-the-training-is-piped-bachman.md`. Week-4 scaffolding done as of 2026-05-07.
+6. **S2 Phase-2 env is built and training** — Harvest (Leibo 2017), from scratch in `RP-6/`. Detailed design: `~/.claude/plans/while-the-training-is-piped-bachman.md`. As of 2026-06-02 the full pipeline (env, both CNN models, 6 configs, matrix driver, eval, viz) is done, the two centralized-critic bugs are fixed (see Phase-2 status), and the 30-run matrix is running. `RP-6/results-old/` is the INVALID pre-fix matrix — do not cite it.
 7. **Time constraints matter** - 15-week S2 timeline is tight
 8. **Non-specialist audience** - Presentations must be accessible

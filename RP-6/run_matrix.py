@@ -67,13 +67,17 @@ class MatrixCell:
 
 
 def _build_matrix(configs_filter: Optional[List[str]], seeds: List[int]) -> List[MatrixCell]:
+    # Order: team -> mixed -> individual (per 2026-06-02 decision) so the
+    # decisive critic-health check (team, w=1.0 -> well-posed value target)
+    # runs FIRST instead of last. The reward-sharing sweep is order-independent
+    # for the science; this just front-loads the diagnostic.
     full = [
-        ("mappo", "configs/harvest_mappo_individual.yaml"),
-        ("mappo", "configs/harvest_mappo_mixed.yaml"),
         ("mappo", "configs/harvest_mappo_team.yaml"),
-        ("ippo",  "configs/harvest_ippo_individual.yaml"),
-        ("ippo",  "configs/harvest_ippo_mixed.yaml"),
+        ("mappo", "configs/harvest_mappo_mixed.yaml"),
+        ("mappo", "configs/harvest_mappo_individual.yaml"),
         ("ippo",  "configs/harvest_ippo_team.yaml"),
+        ("ippo",  "configs/harvest_ippo_mixed.yaml"),
+        ("ippo",  "configs/harvest_ippo_individual.yaml"),
     ]
     if configs_filter:
         keep = []

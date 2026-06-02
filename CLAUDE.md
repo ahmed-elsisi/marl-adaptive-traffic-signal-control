@@ -415,7 +415,7 @@ more valuable than asymmetric depth.
   the FixedGreedy baseline `run_fixed_greedy.py`, `evaluate_harvest.py`,
   `plot_harvest_eval.py`, the behaviour visualizer `visualize_harvest.py`, and
   `tests/smoke_new_configs.py` (all six configs build).
-- 🐛 **Two critic bugs found and fixed (2026-06-02) — the earlier matrix in
+- 🐛 **Three critic bugs found and fixed (2026-06-02 → 06-03) — the earlier matrix in
   `RP-6/results-old/` is INVALID and must not be cited:**
   1. **Centralized-critic `global_state` never reached the critic.** The
      injection was attached via `PolicySpec config={"postprocess_fn": ...}`, a key
@@ -428,20 +428,45 @@ more valuable than asymmetric depth.
      (max=255) in a real train step.
   2. **`vf_clip_param: 10.0` zeroed the critic gradient** (Harvest returns are
      O(250–950)). Raised to **10000.0** across all six configs.
+  3. **The centralized critic never shaped the advantages (found 2026-06-03, the
+     big one).** `global_state` is not a `compute_actions` column, so during
+     rollout `value_function()` fell back to a **zero grid**
+     (`_build_eval_fallback_global`) → the GAE advantage baseline (VF_PREDS) was a
+     near-constant value, and the default GAE ran on those garbage values. The
+     callback injected the real `global_state` only *after* GAE, so the centralized
+     critic was only trained to predict targets bootstrapped from the zero baseline
+     — it never influenced ADVANTAGES/VALUE_TARGETS. Symptom: `vf_explained_var`
+     stuck **~0.09 across ALL reward conditions** (individual/mixed/team alike) with
+     `vf_loss` *rising*; the policy still learned (REINFORCE-like, constant
+     baseline). **IPPO was unaffected** — its critic uses local obs, which IS
+     available at rollout, so MAPPO was being handicapped vs IPPO. Fix:
+     `recompute_central_gae()` in `on_postprocess_trajectory` recomputes VF_PREDS by
+     forwarding the central critic on the real `global_state`, then re-runs
+     `compute_advantages` (standard RLlib CTDE pattern). **Verified live (team,
+     w=1.0):** `vf_explained_var` 0.09 (flat) → **0.34 and rising** by iter 54, and
+     `vf_loss` flipped from rising to falling/stable. MAPPO no longer handicapped.
+  - **Value normalization left OFF deliberately:** `update_value_normalization` is
+     never called (so `value_mean=0`/`value_std=1`), but the model denormalizes
+     *inside* `value_function` (which RLlib also uses for the loss), so wiring it
+     would blow up value-loss gradients by ~std². With bug 3 fixed the critic is
+     healthy without it (explained-var 0.34, loss stable), so it stays off.
   - Also added a `step_normalized` time feature to both critics (ViewRequirement
-    + concat, symmetric across MAPPO/IPPO so the comparison stays fair). The fix
-    **changed the model architecture**, so `results-old/` checkpoints can no
+    + concat, symmetric across MAPPO/IPPO so the comparison stays fair). These
+    fixes **changed the model architecture**, so `results-old/` checkpoints can no
     longer be loaded into the current models.
 - ✅ All checks pass: env shapes, both CNN forward passes, all six configs build,
   and the centralized-critic data path verified end-to-end.
-- 🚀 **Full 30-run RL matrix RUNNING (2026-06-02)** via `python run_matrix.py`
-  (idempotent; stamps under `results/.matrix_done/`; tolerates the Windows
-  pyarrow crash by checking for a written checkpoint, not the exit code), in
-  parallel with the CPU paper_baseline. ~200 iters/cell, ~3 h/cell, ~3.5–4 days
-  for the 30 RL cells. FixedGreedy (3 cells) is a separate
-  `python run_fixed_greedy.py --episodes 5 --seed 42`. **Canary**: confirm the
-  first cell's `vf_explained_var` climbs (the one-time proof the critic fix holds)
-  before trusting the remaining 29.
+- 🚀 **Full 30-run RL matrix RUNNING (re-launched 2026-06-03 after the bug-3 fix).**
+  Order changed to **team → mixed → individual** (both algos) in `run_matrix.py` so
+  the decisive critic check (team) runs first. The first attempt (2026-06-02,
+  individual-first) is what surfaced bug 3 — its data was discarded. Idempotent
+  (stamps under `results/.matrix_done/`; tolerates the Windows pyarrow crash by
+  checking for a checkpoint, not the exit code), in parallel with the CPU
+  paper_baseline (`num_gpus: 0`). ~200 iters/cell, ~3 h/cell, ~3.5–4 days for the 30
+  RL cells. FixedGreedy (3 cells) is separate
+  (`python run_fixed_greedy.py --episodes 5 --seed 42`). **Canary**: the first team
+  cell confirmed the fix (`vf_explained_var` 0.09 → 0.34, rising); watch each new
+  condition's explained-var stays healthy before trusting it.
 - ⚠ **Cosmetic post-fit Windows crash persists**: after `tuner.fit()` writes the
   checkpoint, Ray's `ExperimentAnalysis`/pyarrow triggers a Windows access
   violation; checkpoint/progress.csv/params.json are intact and only the exit code

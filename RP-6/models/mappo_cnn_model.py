@@ -37,6 +37,8 @@ from ray.rllib.models import ModelCatalog
 from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
 from ray.rllib.policy.sample_batch import SampleBatch
 from ray.rllib.policy.view_requirement import ViewRequirement
+from ray.rllib.evaluation.postprocessing import compute_advantages
+from ray.rllib.utils.torch_utils import convert_to_torch_tensor
 from ray.rllib.utils.annotations import override
 from ray.rllib.utils.typing import ModelConfigDict, TensorType
 
@@ -362,6 +364,58 @@ def harvest_centralized_critic_postprocessing(
     return sample_batch
 
 
+def recompute_central_gae(policy, sample_batch: SampleBatch) -> SampleBatch:
+    """Make the centralized critic actually shape the advantages (the real fix).
+
+    During rollout, value_function() is called WITHOUT global_state (it is not a
+    compute_actions column), so the rollout VF_PREDS fall back to a zero grid —
+    a near-constant baseline. The default GAE then runs on those garbage values,
+    so the centralized critic never influences ADVANTAGES/VALUE_TARGETS; it only
+    gets trained to predict targets bootstrapped from that constant baseline.
+
+    Here, after the real global_state is injected, we recompute VF_PREDS by
+    running the central critic on the actual global_state, then re-run GAE so the
+    advantages use the true centralized baseline. Standard RLlib CTDE pattern.
+    """
+    # 1. Inject global_state + step_normalized columns onto the batch.
+    harvest_centralized_critic_postprocessing(policy, sample_batch)
+
+    # 2. Recompute VF_PREDS with the central critic on the real global_state.
+    if policy.loss_initialized():
+        model = policy.model
+        dev = next(model.parameters()).device
+        input_dict = {
+            "obs": convert_to_torch_tensor(sample_batch[SampleBatch.OBS], dev),
+            "global_state": convert_to_torch_tensor(sample_batch["global_state"], dev),
+            "step_normalized": convert_to_torch_tensor(sample_batch["step_normalized"], dev),
+        }
+        with torch.no_grad():
+            model.forward(input_dict, [], None)  # sets the global_state/step caches
+            central_vf = model.value_function()
+        sample_batch[SampleBatch.VF_PREDS] = (
+            central_vf.detach().cpu().numpy().astype(np.float32)
+        )
+    else:
+        # RLlib's dummy init pass before the model is built — keep zeros.
+        sample_batch[SampleBatch.VF_PREDS] = np.zeros_like(
+            sample_batch[SampleBatch.REWARDS], dtype=np.float32
+        )
+
+    # 3. Re-run GAE with the corrected centralized VF_PREDS.
+    terminateds = sample_batch.get(SampleBatch.TERMINATEDS)
+    completed = bool(terminateds[-1]) if terminateds is not None and len(terminateds) else False
+    last_r = 0.0 if completed else float(sample_batch[SampleBatch.VF_PREDS][-1])
+    compute_advantages(
+        sample_batch,
+        last_r,
+        policy.config["gamma"],
+        policy.config["lambda"],
+        use_gae=policy.config.get("use_gae", True),
+        use_critic=policy.config.get("use_critic", True),
+    )
+    return sample_batch
+
+
 ModelCatalog.register_custom_model("mappo_cnn_centralized", MAPPOCNNModelCentralizedCritic)
 
 
@@ -392,4 +446,7 @@ class HarvestCentralizedCriticCallback(DefaultCallbacks):
         **kwargs,
     ) -> None:
         policy = policies.get(policy_id)
-        harvest_centralized_critic_postprocessing(policy, postprocessed_batch)
+        # Recompute VF_PREDS with the central critic on global_state and re-run
+        # GAE, so the centralized critic actually shapes the advantages (not just
+        # the rollout's zero-fallback baseline).
+        recompute_central_gae(policy, postprocessed_batch)

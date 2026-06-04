@@ -202,6 +202,113 @@ def build_mappo_config(config: dict) -> PPOConfig:
     return algo_config
 
 
+def _find_latest_checkpoint(resume_path: str) -> Path:
+    """
+    Resolve a user-supplied resume path to the latest checkpoint directory.
+
+    Accepts a checkpoint dir, a trial dir, or the experiment dir, and returns
+    the highest-numbered ``checkpoint_XXXXXX`` directory found beneath it.
+    """
+    p = Path(resume_path).resolve()
+
+    # Already a checkpoint dir?
+    if p.name.startswith("checkpoint_") and (p / "rllib_checkpoint.json").exists():
+        return p
+
+    # Trial dir (contains checkpoint_* directly) or experiment dir (one level up).
+    candidates = sorted(p.glob("checkpoint_*")) or sorted(p.glob("*/checkpoint_*"))
+    candidates = [c for c in candidates if (c / "rllib_checkpoint.json").exists()]
+    if not candidates:
+        raise FileNotFoundError(
+            f"No checkpoint_* directory found under {resume_path}. "
+            f"Point --resume at a trial dir (PPO_sumo_traffic_...), an experiment "
+            f"dir, or a specific checkpoint_XXXXXX dir."
+        )
+    return candidates[-1]
+
+
+def _resume_manual(
+    algo_config: PPOConfig,
+    resume_path: str,
+    num_iterations: int,
+    checkpoint_freq: int,
+):
+    """
+    Resume training from a checkpoint using a manual Algorithm.train() loop.
+
+    Bypasses tune.Tuner (and therefore Ray's ExperimentAnalysis / pyarrow path,
+    which segfaults on this Windows setup). Restores the full algorithm state
+    -- weights, optimizer, MeanStdFilter running stats, and the iteration
+    counter -- then trains to ``num_iterations``, writing numbered checkpoints
+    into the same trial directory so evaluate.py keeps working unchanged.
+    """
+    latest_ckpt = _find_latest_checkpoint(resume_path)
+    trial_dir = latest_ckpt.parent
+
+    print(f"\n↻ Restoring algorithm from: {latest_ckpt}")
+    algo = algo_config.build()
+    algo.restore(str(latest_ckpt))
+    start_iter = algo.iteration
+    print(f"  Resumed at iteration {start_iter}; training to {num_iterations}.")
+    print(f"  New checkpoints -> {trial_dir}\\checkpoint_XXXXXX (every {checkpoint_freq} iters)")
+
+    # Append training curves to the trial's existing TensorBoard logs so the
+    # resumed segment shows up on the same charts.
+    writer = None
+    try:
+        from torch.utils.tensorboard import SummaryWriter
+        writer = SummaryWriter(log_dir=str(trial_dir))
+    except Exception as e:
+        print(f"  (TensorBoard logging unavailable: {e})")
+
+    def _save(it: int):
+        ckpt_dir = trial_dir / f"checkpoint_{it:06d}"
+        ckpt_dir.mkdir(parents=True, exist_ok=True)
+        algo.save(str(ckpt_dir))
+        print(f"  ✓ checkpoint saved: {ckpt_dir}")
+
+    last_result = None
+    try:
+        while algo.iteration < num_iterations:
+            result = algo.train()
+            last_result = result
+            it = result["training_iteration"]
+
+            er = result.get("env_runners", {}) or {}
+            reward = er.get("episode_reward_mean", result.get("episode_reward_mean"))
+            info = (result.get("info", {}) or {}).get("learner", {}).get("shared_policy", {})
+            stats = info.get("learner_stats", info) if isinstance(info, dict) else {}
+
+            reward_str = f"{reward:.2f}" if reward is not None else "n/a"
+            print(f"iter {it:>4}  reward_mean {reward_str}")
+
+            if writer is not None:
+                if reward is not None:
+                    writer.add_scalar("resume/episode_reward_mean", reward, it)
+                for k in ("policy_loss", "vf_loss", "entropy", "kl", "vf_explained_var"):
+                    v = stats.get(k)
+                    if isinstance(v, (int, float)):
+                        writer.add_scalar(f"resume/{k}", v, it)
+                writer.flush()
+
+            if it % checkpoint_freq == 0:
+                _save(it)
+
+        # Final checkpoint at the stop iteration (if not just saved on the freq boundary).
+        if algo.iteration % checkpoint_freq != 0:
+            _save(algo.iteration)
+    finally:
+        if writer is not None:
+            writer.close()
+        algo.stop()
+
+    print("\n" + "=" * 80)
+    print(f"Resume complete at iteration {algo.iteration if last_result is None else last_result['training_iteration']}.")
+    print(f"Checkpoints in: {trial_dir}")
+    print("=" * 80)
+    return last_result
+
+
 def train_mappo(
     config_path: str,
     num_iterations: int = 2000,
@@ -239,6 +346,22 @@ def train_mappo(
     training_config = config.get('training', {})
     
     # Run training
+    if resume_path:
+        # Resume via a manual Algorithm.restore + train() loop.
+        #
+        # We deliberately do NOT use tune.Tuner.restore here: on this Windows
+        # setup Ray's ExperimentAnalysis parses the trial result.json through
+        # pandas' pyarrow string backend, which segfaults (Windows access
+        # violation). Tuner.restore invokes ExperimentAnalysis up front, so it
+        # crashes before training can start. Restoring the Algorithm directly
+        # from the latest checkpoint side-steps the Tune analysis layer entirely.
+        return _resume_manual(
+            algo_config=algo_config,
+            resume_path=resume_path,
+            num_iterations=num_iterations,
+            checkpoint_freq=checkpoint_freq,
+        )
+
     tuner = tune.Tuner(
         "PPO",
         param_space=algo_config.to_dict(),

@@ -349,10 +349,19 @@ Outperformed both heuristic baselines:
     this demand scenario at n=5.
 - ✅ Standalone baselines still hold: IPPO is competitive with Max-Pressure
   (~9.5 s vs 8.05 s avg wait) and crushes Fixed-Time (38.25 s).
-- ⏳ **paper_baseline run in progress (2026-06-02):** the Hanabi-preset [512,512]
-  comparator, running on CPU (`num_gpus: 0`, ~49–50 h) in parallel with the
-  Phase-2 Harvest matrix on the GPU. Completes the three-way Phase-1 comparison
-  (v2 vs IPPO vs paper-baseline). Run with `--iterations 200` to match fa6ad/adfef.
+- ⏳ **paper_baseline run in progress (run `e7611`, started 2026-06-02):** the
+  Hanabi-preset [512,512] comparator, running on CPU (`num_gpus: 0`, ~49–50 h) in
+  parallel with the Phase-2 Harvest matrix on the GPU. Completes the three-way
+  Phase-1 comparison (v2 vs IPPO vs paper-baseline). Run with `--iterations 200`
+  to match fa6ad/adfef.
+  - 🔌 **Power-cut interrupt + resume (2026-06-04).** The run reached iter 179
+    (`episode_reward_mean ≈ -53`) when a power cut killed it. The last *saved*
+    checkpoint was iter 150 (`checkpoint_000002`; freq 50), so iters 151–179 were
+    lost. Resumed from iter 150 → 200 via the now-working `--resume` path in
+    `train_mappo.py` (see resume note below). First resumed iter (151) reported
+    `-53.44`, confirming the trained weights + MeanStdFilter state loaded
+    correctly (not a fresh restart). New checkpoints land back in the `e7611`
+    trial dir (`checkpoint_000003` = iter 200).
 
 ### Phase 2: Social Dilemma Environment (Weeks 4-9)
 
@@ -586,9 +595,32 @@ python train_mappo.py --config configs/mappo_config_v2.yaml --iterations 1000
 # Train the IPPO comparator (decentralized critic)
 python train_ippo.py --config configs/ippo_config.yaml --iterations 1000
 
-# Resume from checkpoint
-python train_mappo.py --config configs/mappo_config_v2.yaml --resume results/mappo_traffic_control/<run_id>/checkpoint_000101
+# Resume from checkpoint (e.g. after a power cut) — ALWAYS pass --iterations
+python train_mappo.py --config configs/mappo_config_v2.yaml --iterations 200 --resume results/mappo_traffic_control/<run_id>
 ```
+
+**Resume mechanism (`train_mappo.py`, fixed 2026-06-04).** `--resume` used to be dead
+code: it was parsed and threaded into `train_mappo()` but never used — the `tune.Tuner`
+call ignored it, so passing `--resume` silently started a *fresh* run. It now works, but
+**not** via `tune.Tuner.restore`: that calls Ray's `ExperimentAnalysis` up front, which
+parses the trial's `result.json` through pandas' pyarrow string backend and **segfaults**
+(the same Windows access violation documented for the post-fit path — here it's fatal
+*before* training). Instead, the resume branch (`_resume_manual`) restores the Algorithm
+directly (`algo_config.build()` + `algo.restore(<latest checkpoint>)`) and drives a manual
+`algo.train()` loop to `--iterations`, bypassing the Tune analysis layer entirely.
+Verified: `algo.restore` brings back the iteration counter (e.g. 150), env-step counters,
+and MeanStdFilter state; `algo.save(dir)` writes standard RLlib checkpoints
+(`algorithm_state.pkl` + `policies/` + `rllib_checkpoint.json`) back into the trial dir as
+`checkpoint_XXXXXX`, so `evaluate.py` loads them unchanged. Caveats: (1) **pass
+`--iterations` explicitly** — the loop runs `while algo.iteration < num_iterations` and the
+script default is 1000, so omitting it overshoots the intended target; (2) `--resume`
+accepts a checkpoint dir, trial dir, or experiment dir (it finds the latest
+`checkpoint_*`); (3) the resumed segment writes training curves to TensorBoard under
+`resume/*` tags, and the algo's auto-attached loggers write `progress.csv`/`result.json`
+to the default `~/ray_results/` dir (not the trial dir) — the trial-dir checkpoints are the
+continuity record. The benign `NaN or Inf found in input tensor.` lines during resume come
+from `tensorboardX` logging the empty `evaluation/*` block on non-eval iters, not from the
+policy.
 
 Note: `train_mappo.py` (and the other RP-5 scripts) currently still default to `mappo_config.yaml` (the v1 baseline). Always pass `--config configs/mappo_config_v2.yaml` explicitly to use the improvised MAPPO until the script defaults are flipped.
 

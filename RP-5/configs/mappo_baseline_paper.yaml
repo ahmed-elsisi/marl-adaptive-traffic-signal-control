@@ -188,7 +188,7 @@ mappo_config:
   sample_timeout_s: 120  # SUMO episodes + restart overhead can exceed default 60s
 
   # GPU configuration (IDENTICAL)
-  num_gpus: 1
+  num_gpus: 0
   num_gpus_per_worker: 0
 
   # Evaluation

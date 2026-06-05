@@ -491,10 +491,24 @@ more valuable than asymmetric depth.
   (stamps under `results/.matrix_done/`; tolerates the Windows pyarrow crash by
   checking for a checkpoint, not the exit code), in parallel with the CPU
   paper_baseline (`num_gpus: 0`). ~200 iters/cell, ~3 h/cell, ~3.5–4 days for the 30
-  RL cells. FixedGreedy (3 cells) is separate
-  (`python run_fixed_greedy.py --episodes 5 --seed 42`). **Canary**: the first team
+  RL cells. **Canary**: the first team
   cell confirmed the fix (`vf_explained_var` 0.09 → 0.34, rising); watch each new
   condition's explained-var stays healthy before trusting it.
+- ✅ **FixedGreedy baseline COMPLETE (2026-06-05, ran in parallel on CPU).**
+  `python run_fixed_greedy.py --episodes 5 --seed 42 --out-dir metrics/fixed_greedy`
+  → n=5 (env seeds 42–46), CSVs in `RP-6/metrics/fixed_greedy/`. Standalone (no
+  Ray/GPU; reads `env.apple_grid` directly), so it didn't touch the running GPU
+  matrix. Results (mean ± std): total apples **1750.2 ± 21**, Gini **0.009**,
+  equality 0.983, sustainability **0.795 ± 0.02**, **time-to-depletion = 1000
+  (full episode — the commons never collapses under the naive rule)**, per-agent
+  ~432–441 (symmetric). **Interpretation anchor:** greedy is simultaneously
+  productive, sustainable, AND equitable here, so it is the floor the RL
+  conditions are measured against — any RL cell (esp. IPPO / individual w=0.0)
+  scoring *below* this on sustainability or time-to-depletion is the
+  tragedy-of-commons signal. Note: FixedGreedy actions ignore
+  `shared_reward_weight` (reads grid state directly), so these four dilemma
+  metrics are identical across all three reward conditions — one run covers the
+  baseline; only the logged `total_team_reward` column would differ by weight.
 - ⚠ **Cosmetic post-fit Windows crash persists**: after `tuner.fit()` writes the
   checkpoint, Ray's `ExperimentAnalysis`/pyarrow triggers a Windows access
   violation; checkpoint/progress.csv/params.json are intact and only the exit code

@@ -241,7 +241,7 @@ Actor activation is configurable via `actor_activation` in the model config (`mo
   - **v2 d4f9d** (47-h legacy): trained at `min_red=1`, actor `[128, 64]`, neighbour `-0.5`. Three changes vs upcoming v2 run.
   - **paper_baseline 4acfd** (47-h legacy): trained at `min_red=1`, neighbour `-0.5`. Two changes vs upcoming run (architecture unchanged).
   - **IPPO 967fc** (47-h legacy, finished 2026-05-08): trained at `min_red=3` ✓, but actor was still `[128, 64]`. One change (actor) vs upcoming IPPO run.
-  None of the legacy checkpoints are valid baselines for the new comparison; they now live in `reference/legacy/`. **Two of the three new baseline runs are complete** (see Phase-1 status below): v2 `fa6ad` (MAPPO) and IPPO `adfef`, both with the 2026-05-08 configs (`min_red=3`, actor [256,256], `num_sgd_iter 15`), stored in `reference/`. The third — paper_baseline — is in progress as of 2026-06-02 (CPU-pinned, `num_gpus: 0`, running in parallel with the Phase-2 Harvest matrix).
+  None of the legacy checkpoints are valid baselines for the new comparison; they now live in `reference/legacy/`. **All three new baseline runs are now complete** (see Phase-1 status below): v2 `fa6ad` (MAPPO) and IPPO `adfef`, both with the 2026-05-08 configs (`min_red=3`, actor [256,256], `num_sgd_iter 15`), plus paper_baseline `e7611` (Hanabi preset, [512,512], CPU-pinned `num_gpus: 0`, finished 2026-06-05 after a power-cut resume) — all stored in `reference/`.
 
 ### Training Configuration
 
@@ -316,7 +316,7 @@ Outperformed both heuristic baselines:
 - Metrics: Network waiting time, throughput, queue lengths
 - Analysis: Coordination value = (MAPPO performance - IPPO performance)
 
-**Phase-1 status (as of 2026-06-02):**
+**Phase-1 status (as of 2026-06-05):**
 - ✅ **New valid baseline runs complete, stored in `reference/`** (both at
   `min_red=3`, actor [256,256] tanh, critic [512,256,128], `num_sgd_iter 15`,
   so the comparison is now fully apples-to-apples):
@@ -349,19 +349,38 @@ Outperformed both heuristic baselines:
     this demand scenario at n=5.
 - ✅ Standalone baselines still hold: IPPO is competitive with Max-Pressure
   (~9.5 s vs 8.05 s avg wait) and crushes Fixed-Time (38.25 s).
-- ⏳ **paper_baseline run in progress (run `e7611`, started 2026-06-02):** the
-  Hanabi-preset [512,512] comparator, running on CPU (`num_gpus: 0`, ~49–50 h) in
-  parallel with the Phase-2 Harvest matrix on the GPU. Completes the three-way
-  Phase-1 comparison (v2 vs IPPO vs paper-baseline). Run with `--iterations 200`
-  to match fa6ad/adfef.
+- ✅ **paper_baseline run COMPLETE (run `e7611`, 200 iters, finished 2026-06-05),
+  stored in `reference/paper_baseline 512x512 - reworked - e7611/`.** The
+  Hanabi-preset [512,512] comparator (lr=7e-4, num_sgd_iter=15, sgd_minibatch=
+  train_batch=32768, clip=0.2, entropy=0.015, grad_clip=10.0, ReLU, actor+critic
+  [512,512]), trained on CPU (`num_gpus: 0`) in parallel with the Phase-2 Harvest
+  matrix on the GPU. Converged cleanly: last-10 mean **-52.04 ± 0.58**, expl_var
+  **0.91**, vf_loss ~0.25 (stable), entropy decayed to 0.53. Neighbour `-0.4`,
+  centralized critic, `min_red=3` (post-patch). Final `checkpoint_000200` is a
+  standard RLlib checkpoint (`algorithm_state.pkl` + `policies/` +
+  `rllib_checkpoint.json`), loadable by `evaluate.py` unchanged (its stale
+  absolute `state_file` path is ignored by RLlib, same as the other reference
+  checkpoints).
   - 🔌 **Power-cut interrupt + resume (2026-06-04).** The run reached iter 179
     (`episode_reward_mean ≈ -53`) when a power cut killed it. The last *saved*
     checkpoint was iter 150 (`checkpoint_000002`; freq 50), so iters 151–179 were
     lost. Resumed from iter 150 → 200 via the now-working `--resume` path in
     `train_mappo.py` (see resume note below). First resumed iter (151) reported
     `-53.44`, confirming the trained weights + MeanStdFilter state loaded
-    correctly (not a fresh restart). New checkpoints land back in the `e7611`
-    trial dir (`checkpoint_000003` = iter 200).
+    correctly (not a fresh restart). The resumed segment (iters 151–200) logged
+    its `progress.csv` to `~/ray_results/PPO_sumo_traffic_2026-06-04_23-06-10ap02kl7m/`
+    (manual `algo.train()` loop, not Tune), while the iter-200 checkpoint was
+    saved back into the `e7611` trial dir (now `checkpoint_000200`).
+  - **Three-way training-reward standing (last-10 mean):** v2 `fa6ad` **-49.76 ±
+    0.39** < paper_baseline `e7611` **-52.04 ± 0.58** < IPPO `adfef` **-55.75 ±
+    8.81**. Our improvised v2 actually edges out the published paper recipe by
+    ~4.6% on training reward — this **reverses** the old legacy finding
+    ("paper_baseline beat v2 by 9%"), which predates v2's [256,256] actor widening
+    and the min_red plumbing fix. ⚠ Training reward is not the project's
+    conclusion metric — the apples-to-apples comparison still needs the
+    deterministic multi-seed eval (`evaluate.py` over seeds 42–46) to slot
+    paper_baseline alongside fa6ad/adfef on avg wait / throughput / halts. **Not
+    yet run** for e7611.
 
 ### Phase 2: Social Dilemma Environment (Weeks 4-9)
 

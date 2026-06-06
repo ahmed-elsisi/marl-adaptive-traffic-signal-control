@@ -484,16 +484,50 @@ more valuable than asymmetric depth.
     longer be loaded into the current models.
 - ✅ All checks pass: env shapes, both CNN forward passes, all six configs build,
   and the centralized-critic data path verified end-to-end.
-- 🚀 **Full 30-run RL matrix RUNNING (re-launched 2026-06-03 after the bug-3 fix).**
-  Order changed to **team → mixed → individual** (both algos) in `run_matrix.py` so
-  the decisive critic check (team) runs first. The first attempt (2026-06-02,
-  individual-first) is what surfaced bug 3 — its data was discarded. Idempotent
-  (stamps under `results/.matrix_done/`; tolerates the Windows pyarrow crash by
-  checking for a checkpoint, not the exit code), in parallel with the CPU
-  paper_baseline (`num_gpus: 0`). ~200 iters/cell, ~3 h/cell, ~3.5–4 days for the 30
-  RL cells. **Canary**: the first team
-  cell confirmed the fix (`vf_explained_var` 0.09 → 0.34, rising); watch each new
-  condition's explained-var stays healthy before trusting it.
+- 🚀 **30-run RL matrix IN PROGRESS — MAPPO half DONE, IPPO half re-launching (status 2026-06-06).**
+  Re-launched 2026-06-03 after the bug-3 fix. Order is **team → mixed → individual**
+  (both algos) in `run_matrix.py` so the decisive critic check (team) runs first. The
+  first attempt (2026-06-02, individual-first) is what surfaced bug 3 — its data was
+  discarded. Idempotent (stamps under `results/.matrix_done/`; tolerates the Windows
+  pyarrow crash by checking for a checkpoint, not the exit code), ran in parallel with
+  the CPU paper_baseline (`num_gpus: 0`). ~200 iters/cell.
+  - ✅ **All 15 MAPPO cells COMPLETE and VERIFIED (2026-06-06).** team / mixed /
+    individual × seeds 42–46, all in `results/mappo_harvest/PPO_harvest_*`. Each
+    reached `training_iteration = 200`, kept the last 5 checkpoints
+    (`checkpoint_000003`–`checkpoint_000007`; earlier three rotated out by
+    `keep_checkpoints_num: 5`), and `checkpoint_000007` (the iter-200 final) is a
+    complete RLlib checkpoint (`algorithm_state.pkl` + `policies/` +
+    `rllib_checkpoint.json`). Verified each run dir exists on disk and the stamp's
+    `final_checkpoint` resolves — i.e. none were falsely stamped on leftover Tune
+    metadata. Final training rewards tightly clustered **976–992** across all 15
+    (team ~977–983, mixed ~985–992, individual ~982–987).
+  - 🔌 **IPPO half interrupted by a power cut + being re-run from scratch (2026-06-06).**
+    `ippo_team_seed42` had legitimately stamped (reached a checkpoint), but the trial
+    dir was manually deleted to re-run it cleanly. **Gotcha confirmed:** `run_matrix.py`
+    skips purely on stamp existence (`_has_stamp`), not on the run dir — so a deleted
+    run whose stamp survives is silently skipped. Fix applied: deleted the stale stamp
+    `results/.matrix_done/harvest_ippo_team_seed42.json` **and** the orphan Tune
+    metadata left in `results/ippo_harvest/` (`experiment_state-*.json`,
+    `basic-variant-state-*.json`, `tuner.pkl`, `.validate_storage_marker`) that pointed
+    at the now-gone trial. `python run_matrix.py --configs ippo --dry-run` then confirmed
+    all 15 IPPO cells queue to RUN from the start. **General recovery rule:** to re-run
+    any cell cleanly, delete its `.matrix_done/<config>_seed<N>.json` stamp (a true
+    mid-cell interrupt never stamps, since stamping requires a found checkpoint).
+  - ⚡ **IPPO rollout workers bumped 3 → 5 (2026-06-06, commit `b4276b1`).** With the
+    CPU paper_baseline finished, the Ryzen 5 3600's 6 physical cores are free; 5 workers
+    + 1 driver = 6 cores. Edited `num_rollout_workers` in all three `harvest_ippo_*.yaml`.
+    Pure infrastructure speedup of the rollout phase — `train_batch_size` stays 32768,
+    so learning is unchanged and the 5-seed sweep still averages over RNG interleaving.
+    GPU untouched (single RTX 3060Ti, already fully assigned to the trainer at
+    `num_gpus: 1` — there is no second GPU to add). ⚠ Note the 15 done MAPPO cells ran
+    at 3 workers; worker count is infra-only (not a learning hyperparameter), so the
+    MAPPO-vs-IPPO comparison stays valid, but flag the asymmetry if byte-level setup
+    parity is ever questioned. Launch the IPPO half with `python run_matrix.py
+    --configs ippo`.
+  - **Canary**: the first team cell confirmed the bug-3 fix (`vf_explained_var`
+    0.09 → 0.34, rising); watch each new condition's explained-var stays healthy before
+    trusting it (IPPO's decentralized critic was never affected by bug 3, so this is
+    mainly a MAPPO concern — already passed).
 - ✅ **FixedGreedy baseline COMPLETE (2026-06-05, ran in parallel on CPU).**
   `python run_fixed_greedy.py --episodes 5 --seed 42 --out-dir metrics/fixed_greedy`
   → n=5 (env seeds 42–46), CSVs in `RP-6/metrics/fixed_greedy/`. Standalone (no

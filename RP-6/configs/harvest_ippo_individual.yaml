@@ -54,7 +54,7 @@ mappo_config:
     policies_to_train: ["shared_policy"]
     policy_mapping_fn: "lambda agent_id, episode, worker, **kwargs: 'shared_policy'"
 
-  num_rollout_workers: 3
+  num_rollout_workers: 5  # 2026-06-06: 3->5 (5 workers + driver = 6 physical cores) to speed rollout after paper_baseline freed CPU. Pure infra change; batch size fixed at 32768 so learning is unchanged.
   num_envs_per_worker: 1
   rollout_fragment_length: 200
   batch_mode: "complete_episodes"

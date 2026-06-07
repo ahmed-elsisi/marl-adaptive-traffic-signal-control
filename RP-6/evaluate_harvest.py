@@ -87,8 +87,19 @@ def run_episode(
     algo,
     obs_filter,
     episode_idx: int,
+    explore: bool = True,
 ) -> Dict:
-    """Run one deterministic episode. Returns the summary dict."""
+    """Run one episode and return the summary dict.
+
+    NOTE: explore defaults to True. On Harvest the trained PPO policy is a
+    stochastic mixture; deterministic argmax (explore=False) collapses it to
+    ~0 apples (verified: 0 vs 965 apples on the team checkpoint, the latter
+    matching the ~978 training reward). This is the opposite of the Phase-1
+    traffic eval, where deterministic worked. The stochastic policy IS the
+    learned behaviour, and it is how the training reward was measured, so it
+    is the honest performance estimate. Both MAPPO and IPPO are evaluated this
+    way, so the comparison stays fair.
+    """
     obs, infos = env.reset()
     collector = HarvestMetricsCollector(env.agent_ids)
     max_capacity = env.grid_height * env.grid_width - env.num_agents
@@ -107,7 +118,7 @@ def run_episode(
             actions[agent_id] = algo.compute_single_action(
                 agent_obs,
                 policy_id="shared_policy",
-                explore=False,
+                explore=explore,
             )
         obs, rewards, terms, truncs, infos = env.step(actions)
         collector.record_step(infos, rewards)
@@ -179,6 +190,7 @@ def evaluate(
     seed: int,
     out_dir: str,
     algo_tag: str,
+    explore: bool = True,
 ):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -230,7 +242,7 @@ def evaluate(
         ep_cfg["seed"] = seed + ep   # vary seed per episode to sample env stochasticity
         env = HarvestEnv(ep_cfg)
         print(f"\n--- Episode {ep + 1}/{num_episodes} (env seed={ep_cfg['seed']}) ---")
-        summary = run_episode(env, algo, obs_filter, episode_idx=ep + 1)
+        summary = run_episode(env, algo, obs_filter, episode_idx=ep + 1, explore=explore)
 
         collector = summary.pop("_collector")
         ts_path = out_dir / f"{algo_tag}_ep{ep + 1}_timeseries.csv"
@@ -276,6 +288,9 @@ def main():
     parser.add_argument("--algo", type=str, default=None,
                         choices=["mappo", "ippo"],
                         help="Algorithm tag for output filenames. Inferred from checkpoint path if omitted.")
+    parser.add_argument("--deterministic", action="store_true",
+                        help="Use argmax actions (explore=False). NOT recommended on Harvest: "
+                             "the stochastic policy collapses to ~0 apples under argmax. Default is stochastic.")
     args = parser.parse_args()
 
     # Infer algo tag from checkpoint path if not given.
@@ -296,6 +311,7 @@ def main():
             seed=args.seed,
             out_dir=args.out_dir,
             algo_tag=algo_tag,
+            explore=not args.deterministic,
         )
     finally:
         ray.shutdown()

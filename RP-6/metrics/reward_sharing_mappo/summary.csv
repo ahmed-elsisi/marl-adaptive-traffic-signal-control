@@ -1,0 +1,17 @@
+condition,shared_reward_weight,n,metric,mean,std
+individual,0.0,5,total_apples_collected,984.3200,10.7542
+individual,0.0,5,sustainability,0.9665,0.0024
+individual,0.0,5,gini_coefficient,0.0138,0.0020
+individual,0.0,5,time_to_depletion,1000.0000,0.0000
+mixed,0.5,5,total_apples_collected,985.3600,6.6909
+mixed,0.5,5,sustainability,0.9673,0.0040
+mixed,0.5,5,gini_coefficient,0.0141,0.0019
+mixed,0.5,5,time_to_depletion,1000.0000,0.0000
+team,1.0,5,total_apples_collected,980.9600,1.7911
+team,1.0,5,sustainability,0.9679,0.0025
+team,1.0,5,gini_coefficient,0.0142,0.0019
+team,1.0,5,time_to_depletion,1000.0000,0.0000
+FixedGreedy,n/a,5,total_apples_collected,1750.2000,23.2422
+FixedGreedy,n/a,5,sustainability,0.7949,0.0217
+FixedGreedy,n/a,5,gini_coefficient,0.0086,0.0022
+FixedGreedy,n/a,5,time_to_depletion,1000.0000,0.0000

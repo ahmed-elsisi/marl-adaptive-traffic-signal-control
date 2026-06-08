@@ -313,8 +313,16 @@ if __name__ == "__main__":
     p.add_argument("--sumo-mode", choices=("gui","cli"), default="cli")
     p.add_argument("--seed", type=int, default=42,
                    help="Random seed for SUMO (default: random). Use 11 to match MAPPO training!")
+    p.add_argument("--all-red", type=float, default=ALL_RED,
+                   help=f"All-red clearance seconds on each phase change (default: {ALL_RED}). "
+                        f"Set to 3 to match the RL agents' min_red=3 for a FAIR comparison.")
+    p.add_argument("--yellow", type=float, default=YELLOW,
+                   help=f"Yellow phase duration seconds (default: {YELLOW}).")
     args = p.parse_args()
     use_gui = (args.sumo_mode == "gui")
+    # Override the module-level clearance globals that run_fixed_cycle reads.
+    ALL_RED = args.all_red
+    YELLOW = args.yellow
     
     print(f"\n{'='*80}")
     print(f"FIXED-TIME CONTROL EVALUATION")

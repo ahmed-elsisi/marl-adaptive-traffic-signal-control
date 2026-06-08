@@ -1,0 +1,58 @@
+\chapter{Introduction}
+\label{ch:intro}
+
+\section{Problem Statement}
+Multi-agent systems --- where several autonomous agents interact to achieve goals
+individually or collectively --- underpin a growing share of modern technology.
+Autonomous vehicles share roads, distributed sensors coordinate surveillance, and
+energy grids balance supply across many producers. Unlike traditional control
+systems with a single centralized decision maker, these settings contain
+independent agents that must learn to coexist, coordinate, or compete. The
+difficulty is not merely making each agent individually competent; it is
+understanding what emerges when many \emph{learning} agents interact.
+
+Reinforcement learning (RL) is a paradigm in which an agent learns to act by
+interacting with an environment and receiving reward feedback. Extending RL to
+many simultaneously learning agents --- Multi-Agent Reinforcement Learning
+(MARL) --- changes the problem fundamentally. Each agent treats the others as part
+of its environment, yet those ``parts'' are themselves learning and changing:
+today's optimal response can fail tomorrow once the others adapt. This
+\emph{non-stationarity} breaks the assumptions that make single-agent RL
+convergent and stable.
+
+Crucially, the \emph{relationship} between agents varies. Sometimes cooperation
+benefits everyone; at other times genuine conflict arises, and an agent can
+exploit a shared resource for private gain while pushing the cost onto the
+collective. Knowing \emph{when} cooperation emerges versus \emph{when}
+exploitation dominates is central to deploying autonomous agents responsibly.
+
+This dissertation studies cooperation in MARL using \emph{traffic signal control}
+as a representative, inherently cooperative case study. Each intersection is an
+agent; because network effects mean that gridlock hurts everyone (including the
+intersection that caused it), traffic sits at the \emph{pure-coordination} end of
+the cooperation spectrum and is an ideal testbed for isolating the value of
+explicit coordination mechanisms.
+
+\section{Research Gap}
+Despite rapid progress, several questions remain underexplored:
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{The middle of the spectrum.} Most work targets either purely
+  cooperative settings or purely competitive games (chess, poker). The continuum
+  between them --- where coordination and competition coexist --- receives less
+  systematic study.
+  \item \textbf{Reward structure.} While reward shaping is known to matter,
+  controlled comparisons of \emph{individual} versus \emph{shared} objectives
+  across standardized environments are rare.
+  \item \textbf{Fairness.} Algorithms typically optimize total system performance
+  without examining how benefits distribute across agents.
+  \item \textbf{Scalability of coordination.} How the \emph{value} of a
+  coordination mechanism changes as a system grows --- from a handful of agents to
+  large networks --- has not been systematically characterized.
+\end{itemize}
+
+This work contributes to the first and fourth gaps directly. It asks a deceptively
+simple question on a controlled traffic benchmark: \emph{does an explicitly
+cooperative algorithm (MAPPO, with a centralized critic) actually outperform a set
+of independent learners (IPPO) when the two are matched in every other respect?}
+The answer --- and the reason behind it --- forms the spine of this dissertation.

@@ -1,0 +1,79 @@
+% =====================================================================
+%  Final Dissertation — Emergent Social Behaviour & Dilemmas in MARL
+%  Ahmed Wael Elsisi (214647) — The British University in Egypt
+%  Compiles with pdflatex, xelatex, or tectonic.
+% =====================================================================
+\documentclass[12pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+
+\graphicspath{{figures/}}
+\captionsetup{font=small,labelfont=bf}
+\setlength{\parskip}{0.4em}
+
+% Convenience macros
+\newcommand{\mappo}{MAPPO}
+\newcommand{\ippo}{IPPO}
+\newcommand{\grid}[1]{$#1\times#1$}
+
+\begin{document}
+
+% ----------------------------- TITLE PAGE -----------------------------
+\begin{titlepage}
+\centering
+\vspace*{1.5cm}
+{\LARGE\bfseries Emergent Social Behaviour \& Dilemmas in\\[0.3em]
+Multi-Agent Reinforcement Learning\par}
+\vspace{1.0cm}
+{\large By\par}
+\vspace{0.3cm}
+{\large Ahmed Wael Elsisi --- 214647\par}
+\vspace{1.5cm}
+{\normalsize A Dissertation submitted to the Faculty of Engineering, The British
+University in Egypt, in Partial Fulfilment of the requirements for the
+bachelor's degree in Electrical Engineering\par}
+\vspace{1.5cm}
+{\large Supervisor: Dr.\ Randa Mohamed\par}
+\vspace{2.0cm}
+{\normalsize June 2026\par}
+{\normalsize Electrical Engineering Department\par}
+{\normalsize Computer Engineering Programme\par}
+\vfill
+\end{titlepage}
+
+\pagenumbering{roman}
+\input{sections/00-abstract}
+
+\tableofcontents
+\listoffigures
+\listoftables
+\clearpage
+\pagenumbering{arabic}
+
+\input{sections/01-intro}
+\input{sections/02-background}
+\input{sections/03-objectives}
+\input{sections/04-methodology}
+\input{sections/05-results}
+\input{sections/06-discussion}
+\input{sections/07-futurework}
+\input{sections/08-conclusion}
+
+% ----------------------------- REFERENCES -----------------------------
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

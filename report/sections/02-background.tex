@@ -1,0 +1,148 @@
+\chapter{Background and Literature Review}
+\label{ch:background}
+
+\section{Reinforcement Learning}
+Reinforcement learning provides a mathematical framework for an agent learning
+optimal behaviour through interaction. Its foundation is the Markov Decision
+Process (MDP): a set of \emph{states} describing the environment, \emph{actions}
+the agent may take, \emph{transition dynamics} mapping state--action pairs to next
+states, and a \emph{reward} signal. The agent seeks a \emph{policy} --- a mapping
+from states to actions --- that maximizes the expected cumulative discounted
+return. This is captured by the Bellman equation~\cite{sutton2018}, which expresses
+the value of a state as the immediate reward plus the discounted value of its
+successor, enabling algorithms to \emph{bootstrap} value estimates from one another.
+Classical methods such as Q-learning iteratively estimate the optimal action-value
+function after each interaction, addressing the \emph{credit assignment} problem of
+attributing outcomes to past actions.
+
+\section{Deep Reinforcement Learning}
+Tabular methods store a value for every state--action pair and become infeasible in
+large or continuous state spaces. Deep Reinforcement Learning (DRL) replaces the
+table with a neural-network function approximator. The Deep Q-Network (DQN)
+pioneered this with \emph{experience replay} (sampling past transitions to break
+temporal correlation) and \emph{target networks} (stabilizing the bootstrap target).
+
+Whereas DQN is value-based, \emph{policy-gradient} methods directly optimize the
+policy by ascending the expected return. Proximal Policy Optimization
+(PPO)~\cite{schulman2017ppo} has become the standard modern choice: it constrains
+how far the policy may move in a single update through a clipped surrogate
+objective, preventing the destructive updates that destabilized earlier methods
+while remaining simple and sample-efficient. Generalized Advantage Estimation
+(GAE)~\cite{schulman2016gae} complements PPO by trading off bias and variance in
+the advantage estimate through exponentially weighted temporal-difference errors;
+it is now standard in policy-gradient implementations.
+
+\section{Multi-Agent Reinforcement Learning}
+
+\subsection{Fundamental Challenges}
+Extending RL to multiple agents introduces complications absent in the
+single-agent case. \textbf{Non-stationarity} is the central one: each agent
+perceives the others as part of its environment, but those components evolve as the
+others learn, violating the stationary-transition (Markov) assumption and voiding
+single-agent convergence guarantees. \textbf{Credit assignment} also becomes
+harder: when a team shares a reward, attributing it to individual actions is
+difficult, and the joint action space grows exponentially (e.g.\ four agents with
+four actions yield $4^4 = 256$ combinations). \textbf{Scalability} therefore
+demands decomposing the global problem into local subproblems each agent can solve
+from its own observation.
+
+\subsection{Algorithmic Approaches}
+\textbf{Independent Q-Learning (IQL)}~\cite{tan1993iql} is the simplest approach:
+each agent learns its own value function, treating the others as environment and
+ignoring non-stationarity entirely. It is simple and scalable, often works in
+practice when mutual influence is limited, but lacks convergence guarantees and
+struggles with cooperative credit assignment. Its policy-gradient analogue,
+\textbf{Independent PPO (IPPO)}, applies PPO independently per agent and is the
+``fully independent learners'' baseline used throughout this work.
+
+\textbf{Value-decomposition} methods address credit assignment by learning how
+individual values combine into a team value. \textbf{QMIX}~\cite{rashid2018qmix}
+represents the joint action-value as a \emph{monotonic} mixture of individual
+values, guaranteeing that improving an individual's value improves the team's,
+while permitting decentralized execution.
+
+These advances rest on the \textbf{Centralized Training with Decentralized
+Execution (CTDE)} paradigm. Under CTDE, training may use privileged global
+information (all agents' observations and actions) to stabilize learning and tame
+non-stationarity, but the deployed policies act only on local observations,
+preserving scalability and requiring no inter-agent communication at run time. A
+useful analogy is a sports team: in practice a coach observes all players and
+teaches coordination; in the match, players act independently on their local view,
+applying what they learned.
+
+\textbf{MADDPG}~\cite{lowe2017maddpg} pioneered CTDE for actor--critic methods with
+centralized critics that see all agents' observations and actions during training
+and decentralized actors at execution. \textbf{MAPPO}~\cite{yu2021mappo} combines
+this centralized-critic architecture with PPO's robust optimization: a shared
+centralized value function consumes all agents' observations during training, each
+agent keeps its own decentralized policy, PPO clipping prevents destructive
+updates, and GAE stabilizes advantages. MAPPO is reported to match or beat more
+specialized cooperative algorithms across standard benchmarks, which is precisely
+why it is the natural ``sophisticated cooperative method'' to test here.
+
+Table~\ref{tab:algos} summarizes these algorithms.
+
+\begin{table}[H]
+\centering
+\caption{Comparison of representative MARL algorithms.}
+\label{tab:algos}
+\small
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Algorithm} & \textbf{Training} & \textbf{Execution} & \textbf{Key characteristics} \\
+\midrule
+IQL / IPPO & Independent       & Decentralized & Simple, scalable; treats others as \\
+           &                   &               & environment; unstable under non-stationarity \\[0.3em]
+QMIX       & Centralized mixer & Decentralized & Monotonic value factorisation; \\
+           &                   &               & cooperative settings only \\[0.3em]
+MADDPG     & Centralized critic& Decentralized & Actor--critic CTDE; continuous actions; \\
+           &                   &               & less stable, limited scalability \\[0.3em]
+MAPPO      & Centralized critic& Decentralized & PPO-based; stable; strong coordination \\
+           &                   &               & and scalability \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Social Dilemmas in Multi-Agent Systems}
+Social dilemmas describe situations where individually rational behaviour yields a
+collectively poor outcome. The \emph{Prisoner's Dilemma} is canonical: both agents
+benefit from mutual cooperation, yet each maximizes its own payoff by defecting
+regardless of the other, so rational self-interest drives both to a worse outcome.
+The \emph{Tragedy of the Commons} extends this to shared resources: each user
+benefits from exploitation while the cost is distributed, creating pressure toward
+overexploitation that destroys the resource for all. \emph{Sequential social
+dilemmas}~\cite{leibo2017ssd} embed such incentives in grid-world environments over
+many timesteps; the ``Harvest'' commons, where agents collect slowly regrowing
+apples and over-harvesting permanently depletes a region, is a standard example.
+Social dilemmas sit at the \emph{opposite} end of the spectrum from traffic and are
+discussed as future work (Chapter~\ref{ch:futurework}).
+
+\section{MARL for Traffic Signal Control}
+Traffic signal control is naturally modelled as MARL: each traffic light is an
+agent that observes local traffic state, selects a signal phase, and is rewarded
+for traffic efficiency. Because intersections interact through traffic flow, agents
+must learn policies that are good for the whole network, not just locally.
+Traditional fixed-time and actuated controllers require manual tuning and cope
+poorly with non-recurring congestion; RL promises adaptive controllers that learn
+from experience. Early single-intersection deep-RL controllers improved on
+classical methods but missed network effects, where a locally optimal decision
+creates downstream problems.
+
+\textbf{CoLight}~\cite{wei2019colight} addressed this by giving each agent
+information about adjacent intersections and sharing network parameters across
+agents, inducing coordinated behaviour despite decentralized execution. A
+particularly effective family is \emph{pressure-based} control, which minimizes the
+imbalance between incoming and outgoing vehicle counts per movement and connects to
+max-pressure control from transportation theory. A large-scale
+comparison~\cite{chu2020largescale} found that sharing neighbour information
+significantly improves network performance \emph{but only with careful reward
+design}: naive individual rewards, where each intersection minimizes only its own
+delay, can harm overall throughput, whereas shared rewards help but demand careful
+algorithm design to scale.
+
+A central observation motivates this dissertation: from a system designer's
+viewpoint traffic is \emph{fundamentally cooperative}. Network effects align
+incentives --- gridlock hurts everyone --- which makes traffic an excellent,
+controlled environment for asking whether an explicit coordination mechanism is
+actually \emph{necessary}, or whether independent learners can recover the same
+behaviour on their own.

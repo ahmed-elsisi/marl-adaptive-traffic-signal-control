@@ -1,0 +1,144 @@
+\chapter{Methodology}
+\label{ch:methodology}
+
+This chapter describes the environment, the agent design shared by all learned
+controllers, the two algorithms under comparison (MAPPO and IPPO), the published
+paper-baseline used as a fidelity check, and --- importantly --- the \emph{fair}
+evaluation protocol under which all controllers are compared.
+
+\section{Environment}
+The environment is a \grid{2} grid network of four signalized intersections
+(\texttt{J1}--\texttt{J4}), each controlled by one agent, simulated in SUMO
+(Simulation of Urban MObility) and driven through the TraCI interface, integrated
+with the Ray RLlib framework. Roads between intersections are \SI{150}{\metre} and
+entry/exit roads \SI{100}{\metre}; each road has three lanes with strict
+directional assignment (lane~0 right turns, lane~1 straight, lane~2 left turns).
+Lane-area detectors span each lane for full observability of positions, speeds and
+waiting times. An episode lasts \SI{3600}{\second} of simulation with a
+\SI{5}{\second} action interval, giving up to 720 decision points per agent.
+Demand follows a realistic profile: light traffic ($0$--\SI{600}{\second}), a rush
+hour (\SI{600}{}--\SI{2400}{\second}), then light traffic again.
+
+\section{Observation, Action and Reward}
+
+\subsection{Observation space (70 dimensions per agent)}
+Each agent observes a 70-dimensional vector: \textbf{28 local} features ---
+per-movement queue lengths (12), one-hot current phase direction (2), normalized
+elapsed phase time (1), movement pressures, i.e.\ incoming minus outgoing counts
+(6), pressure derivatives (6), and a binary min-green flag (1) --- and \textbf{42
+neighbour} features from the two adjacent intersections (21 each), carrying shared
+queues, neighbour phase, combined pressures, and directional incoming/outgoing
+metrics, spatially discounted with $\gamma_s = 0.9$ to weight nearer intersections
+more heavily.
+
+\subsection{Action space}
+The action space is discrete with four green phases following traffic-engineering
+standards: north--south through/right, north--south left, east--west
+through/right, and east--west left. Right turns are permissive in all phases.
+
+\subsection{Reward function}
+The reward combines five weighted components (configuration~v2):
+\begin{equation}
+r_t = -1.0\,W_t \;-\; 0.25\,Q_t \;+\; 0.1\,T_t \;-\; 0.4\,P_t \;-\; 0.4\,N_t,
+\end{equation}
+where $W_t$ is cumulative waiting time (the primary objective), $Q_t$ the queue
+length, $T_t$ the network throughput (a shared term), $P_t$ the local pressure
+(incoming minus outgoing queue imbalance), and $N_t$ the spatially discounted
+\emph{neighbour} pressure ($\gamma_s = 0.9$) that couples each agent to its
+neighbours. The reward is clipped to $[-3.0, 1.0]$. The neighbour term $N_t$ is the
+sole explicit multi-agent coupling in the reward and is the lever that
+distinguishes MAPPO from IPPO (Section~\ref{sec:algos}).
+
+\section{Network Architectures}
+All learned agents share a single policy (parameter sharing across the four
+homogeneous intersections). The \textbf{actor} is decentralized: it maps the
+agent's 70-dimensional local observation through two hidden layers of 256 units
+with $\tanh$ activations to four action logits. The MAPPO \textbf{critic} is
+\emph{centralized}: it consumes the 280-dimensional global state (the four agents'
+70-dimensional observations concatenated) through hidden layers of 512, 256 and 128
+units with ReLU activations to a single value. Orthogonal initialization and a
+running observation normalizer (\texttt{MeanStdFilter}) are used throughout.
+
+\section{Algorithms Under Comparison}
+\label{sec:algos}
+The comparison is designed so that MAPPO and IPPO differ \emph{only} in the two
+design choices that define ``cooperative MARL'' versus ``independent learners'';
+every other hyperparameter and the actor architecture are identical.
+
+\begin{itemize}[leftmargin=1.4em]
+  \item \textbf{MAPPO (cooperative).} Centralized critic over the 280-dimensional
+  global state; the neighbour-pressure reward term $N_t$ is active. This is the
+  ``full cooperative package'': CTDE training plus an explicitly coordination-aware
+  reward.
+  \item \textbf{IPPO (independent).} Decentralized critic that sees only the
+  agent's own 70-dimensional observation; the neighbour-pressure weight is set to
+  zero so each agent optimizes a purely local objective. Parameter sharing is
+  retained. This is the ``fully independent learners'' package.
+\end{itemize}
+
+\noindent The shared hyperparameters (configuration~v2) are listed in
+Table~\ref{tab:hparams}.
+
+\begin{table}[H]
+\centering
+\caption{Shared training hyperparameters (MAPPO~v2 and IPPO).}
+\label{tab:hparams}
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Hyperparameter} & \textbf{Value} & \textbf{Note} \\
+\midrule
+Learning rate            & $5\times10^{-4}$ & \\
+Discount factor $\gamma$ & $0.99$           & long-horizon optimization \\
+GAE $\lambda$            & $0.95$           & bias--variance trade-off \\
+PPO clip $\epsilon$      & $0.2$            & \\
+Value clip               & $10.0$           & \\
+Gradient clip            & $1.0$            & \\
+Entropy coefficient      & $0.02$           & exploration \\
+Value-loss coefficient   & $1.0$            & \\
+SGD iterations/update    & $15$             & \\
+Minibatch / train batch  & $32768 / 32768$  & full-batch update \\
+Rollout workers          & $3$              & \\
+Rollout fragment         & $200$            & complete-episode batching \\
+Training iterations      & $200$            & \\
+Observation filter       & MeanStdFilter    & running mean/std \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Paper-baseline (fidelity check)}
+To confirm that the project's MAPPO is not an under-powered strawman, it is also
+compared against the canonical recipe of Yu~et~al.~\cite{yu2021mappo} (their adopted
+MLP preset): actor and critic both two hidden layers of 512 units with ReLU, actor
+learning rate $7\times10^{-4}$, 15 SGD iterations per update, a single full-batch
+minibatch, clip $0.2$, entropy coefficient $0.015$, and gradient clipping at
+$10.0$. All three controllers (MAPPO~v2, IPPO, paper-baseline) are trained for 200
+iterations under identical environment dynamics.
+
+\section{Baseline Controllers}
+Two standard heuristics provide reference points. The \textbf{fixed-time}
+controller cycles phases on a fixed schedule. The \textbf{max-pressure} controller
+selects, at each decision, the phase that maximizes the relief of pressure
+(incoming minus outgoing queue imbalance), subject to a minimum green time.
+
+\section{Fair Evaluation Protocol}
+\label{sec:fairproto}
+A controlled comparison requires that every controller pay the same real-world
+operating costs. Two points are essential.
+
+\paragraph{Matched safety clearance.} The learned agents operate with a
+\SI{3}{\second} all-red clearance on every phase change (\texttt{min\_red}~$=3$), a
+realistic safety constraint they were \emph{trained} under. The heuristic
+controllers, by default, switched phases instantaneously (zero clearance), which
+silently advantaged them. All controllers are therefore evaluated with the
+\emph{same} \SI{3}{\second} clearance; the consequences of ignoring this are
+quantified in Chapter~\ref{ch:results}.
+
+\paragraph{Faithful policy evaluation.} With RLlib's connector-enabled inference,
+the running observation normalizer is not applied automatically at evaluation; it is
+applied manually so the deterministic policy receives the same input distribution it
+saw in training (omitting it collapses the policy). Neighbour edge-connectivity
+metadata is likewise forwarded into the evaluation environment so the full
+70-dimensional observation is reconstructed. Each controller is evaluated over five
+seeds ($42$--$46$); per-metric means, standard deviations, and Welch's $t$-tests are
+reported in Chapter~\ref{ch:results}.

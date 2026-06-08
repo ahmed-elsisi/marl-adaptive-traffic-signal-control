@@ -1,0 +1,41 @@
+\chapter{Future Work}
+\label{ch:futurework}
+
+The central finding of this dissertation --- that an explicit coordination mechanism
+buys essentially nothing over independent learners on a \grid{2} traffic network ---
+is best read not as an endpoint but as a precisely located starting point. Two
+directions follow directly, both placed beyond the scope of this submission by
+compute constraints rather than by design.
+
+\section{Network Scale-Up (\texorpdfstring{\grid{2} $\rightarrow$ \grid{5}}{2x2 to 5x5})}
+The most direct test of the interpretation in Chapter~\ref{ch:discussion} is to
+grow the network. If the coordination value is near zero because a \grid{2} grid is
+small enough that incentives are already locally aligned, then enlarging the network
+to \grid{5} (25 intersections) should widen the gap between MAPPO and IPPO: distant
+intersections interact through longer traffic chains, non-stationarity intensifies,
+and the centralized critic's global view should begin to pay off. This expectation
+is consistent with the large-scale findings of Chu~et~al.~\cite{chu2020largescale}
+and the network-level cooperation of CoLight~\cite{wei2019colight}. A \grid{5} SUMO
+network skeleton was prototyped during this project but reverted; training it to
+convergence at this scale (with a single GPU and per-run training times measured in
+days) exceeded the available compute budget. Quantifying how coordination value
+scales with network size is therefore the primary item of future work.
+
+\section{Extending to a Social Dilemma}
+Traffic occupies the pure-coordination end of the cooperation spectrum: incentives
+are aligned, so there is nothing to defect over. The complementary experiment is to
+move to the \emph{opposite} end --- a sequential social dilemma in which defection is
+individually tempting but collectively harmful. A natural choice is an
+apple-harvesting commons in the style of Leibo~et~al.~\cite{leibo2017ssd}, where
+agents collect a slowly regrowing resource and over-harvesting permanently depletes
+it. There, the reward-structure axis (individual versus shared rewards) that is
+inert in traffic should become decisive, allowing a direct study of when shared
+rewards are \emph{necessary} to sustain cooperation versus when independent learning
+suffices. Contrasting the learned behaviours across the two environments would
+complete the coordination--dilemma spectrum this project set out to chart.
+
+\section{Efficiency--Equity Analysis}
+Finally, the per-agent breakdowns collected here can support a fairness analysis
+(e.g.\ a Gini coefficient over per-intersection outcomes) to determine whether high
+system performance requires unequal treatment of individual intersections --- a
+question that becomes more pointed at larger scales and in dilemma settings.

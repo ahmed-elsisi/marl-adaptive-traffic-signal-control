@@ -1,0 +1,16 @@
+controller,metric,mean,std,n,p_vs_MAPPO
+MAPPO,avg_wait,9.9155,0.6461,5,
+MAPPO,max_halt,14.2000,1.6432,5,
+MAPPO,avg_halt,3.9110,0.1055,5,
+MAPPO,switches,1391.0000,12.3288,5,
+MAPPO,arrivals,1261.6000,0.8944,5,
+IPPO,avg_wait,10.3397,0.3078,5,0.2355
+IPPO,max_halt,14.6000,2.0736,5,0.7445
+IPPO,avg_halt,3.9972,0.2698,5,0.5338
+IPPO,switches,1369.6000,8.3845,5,0.0147
+IPPO,arrivals,1261.2000,1.0954,5,0.5454
+PaperBaseline,avg_wait,10.2105,0.2772,5,0.3881
+PaperBaseline,max_halt,14.6000,1.6733,5,0.7129
+PaperBaseline,avg_halt,4.0434,0.2721,5,0.3553
+PaperBaseline,switches,1319.4000,22.9957,5,0.0008
+PaperBaseline,arrivals,1261.6000,0.5477,5,1.0000

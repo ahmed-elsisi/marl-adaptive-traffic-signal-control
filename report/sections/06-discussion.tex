@@ -1,0 +1,61 @@
+\chapter{Discussion}
+\label{ch:discussion}
+
+The results of Chapter~\ref{ch:results} invert the expectation that frames most of
+the cooperative-MARL literature. MAPPO is the sophisticated, theoretically motivated
+choice: its centralized critic is designed precisely to tame non-stationarity and to
+solve the multi-agent credit-assignment problem, and its neighbour-coupled reward
+explicitly encodes coordination. One naturally expects it to beat a set of
+independent learners that ignore all of this. Yet on the \grid{2} network the two
+are statistically indistinguishable on every performance metric, and the only
+reliable difference --- MAPPO's slightly higher switching rate --- is, if anything, a
+mild inefficiency rather than a benefit. This chapter asks why.
+
+\section{Why the Coordination Value Is Near Zero}
+The most parsimonious explanation is that, at this scale, \emph{there is little
+coordination left for an explicit mechanism to add}. A \grid{2} grid has only four
+intersections, each adjacent to two neighbours, and the traffic-control reward is
+already locally informative: minimizing one's own queue and waiting time, on a
+network this tightly coupled, is almost the same objective as minimizing the
+network's. In other words, the incentives are \emph{already aligned} by the
+structure of the problem. The centralized critic provides a lower-variance value
+estimate and the neighbour-pressure term nudges toward network-aware behaviour, but
+an independent learner equipped with the same local observations and the same
+parameter-sharing can discover the same coordinated phasing on its own. Coordination
+here is \emph{emergent} rather than \emph{engineered}: it falls out of independent
+optimization because the environment does not reward defection.
+
+This reading is reinforced by two details. First, both learned controllers
+\emph{decisively} beat the heuristic baselines under matched clearance
+(Chapter~\ref{ch:results}); the learning is doing real work --- it is not that the
+task is trivial, but that the \emph{coordination-specific} additions are redundant.
+Second, MAPPO's extra phase switches buy no improvement, which is consistent with a
+centralized critic that is active but not pivotal: it shapes the policy slightly
+differently without changing what the policy ultimately achieves.
+
+\section{The Scale Hypothesis}
+If the coordination value is small \emph{because} the network is small, then it
+should grow with scale. As a grid enlarges, an agent's actions influence ever more
+distant intersections through longer chains of traffic; the gap between ``minimize
+my own delay'' and ``minimize the network's delay'' widens, non-stationarity from
+the perspective of any single learner intensifies, and the centralized critic's
+access to the global state should translate into a measurable advantage. This is
+exactly the regime in which network-level cooperation has been shown to
+matter: CoLight~\cite{wei2019colight} demonstrates gains from sharing neighbour
+information at city scale, and the large-scale study of
+Chu~et~al.~\cite{chu2020largescale} reports that neighbour-aware, carefully designed
+shared rewards improve performance --- while naive individual rewards can actively
+harm throughput --- on large networks. The near-zero coordination value measured here
+is therefore not in tension with that literature; it is the expected
+\emph{small-scale} end of the same curve.
+
+\section{Implications}
+The practical implication is a note of caution and a research direction. The caution
+is that, on small or tightly coupled multi-agent problems, the considerable
+machinery of CTDE may be unnecessary: a simpler independent-learning approach with
+parameter sharing can match it, at lower implementation and training cost. The
+research direction is that the \emph{value of coordination} should be treated as a
+quantity that depends on system scale and on how strongly incentives conflict ---
+not as a fixed property of an algorithm. The controlled traffic setting used here
+establishes a clean zero-point for that quantity, against which both larger networks
+and genuine social dilemmas (Chapter~\ref{ch:futurework}) can be measured.

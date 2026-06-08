@@ -1,0 +1,147 @@
+\chapter{Results and Analysis}
+\label{ch:results}
+
+This chapter presents the empirical findings in the order that tells the story:
+the cooperative controller is first shown to train well and to beat the heuristic
+baselines under a fair evaluation; it is then confirmed to be a faithful
+implementation of the published method; and finally it is compared head-to-head
+against independent learners, with a result that inverts the natural expectation.
+
+\section{Training Convergence}
+The MAPPO controller (configuration~v2) trains stably to convergence over 200
+iterations. The mean episode reward improves from $-2756.5$ at initialization to a
+converged last-ten-iteration mean of $-49.76 \pm 0.41$
+(Figure~\ref{fig:trainreward}). The centralized critic is accurate, reaching a
+value-function explained variance of $0.907$, and policy updates remain
+conservative, with an average KL divergence of $0.0034$ across the final iterations
+(Figure~\ref{fig:trainkl}). Together these indicate healthy, stable joint
+optimization of the actor and critic without divergence or value collapse.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\linewidth]{train_reward.png}
+\caption{MAPPO~(v2) mean episode reward over training iterations. Reward rises from
+$\approx -2757$ to a stable plateau near $-50$ within roughly 100 iterations.}
+\label{fig:trainreward}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\linewidth]{train_kl_explvar.png}
+\caption{Training stability. (a) KL divergence stays small, confirming PPO clipping
+constrains the updates. (b) The centralized critic's explained variance climbs to
+$\approx 0.91$, indicating accurate value prediction.}
+\label{fig:trainkl}
+\end{figure}
+
+\section{Comparison Against Heuristic Baselines (Fair Clearance)}
+\label{sec:baselines}
+A subtle but decisive evaluation issue must be addressed first. The learned agents
+pay a \SI{3}{\second} all-red safety clearance on every phase change, whereas the
+heuristic controllers, by default, switched instantaneously. Evaluated under that
+\emph{unfair} zero-clearance setting, max-pressure appears competitive
+($8.15 \pm 0.08$~s average wait). But when the \emph{same} \SI{3}{\second} clearance
+is applied to the heuristics --- the cost the learned agents always paid ---
+max-pressure's average wait nearly triples to $21.63 \pm 1.00$~s and fixed-time rises
+to $47.03 \pm 0.59$~s (Table~\ref{tab:fair}, Figure~\ref{fig:fair}). Under this fair,
+matched-clearance protocol the MAPPO controller ($9.92 \pm 0.65$~s) outperforms
+max-pressure by roughly a factor of two and fixed-time by nearly a factor of five.
+The heuristics' apparent strength was therefore an artefact of an unequal evaluation,
+not a genuine advantage; correcting it both restores a fair comparison and
+strengthens the case for the learned controllers.
+
+\begin{table}[H]
+\centering
+\caption{Average waiting time (s) by controller, with and without the
+\SI{3}{\second} safety clearance (mean~$\pm$~std over seeds 42--46). The learned
+controllers were always evaluated at \SI{3}{\second}; only the matched-clearance
+column is a fair comparison.}
+\label{tab:fair}
+\small
+\begin{tabular}{@{}lcc@{}}
+\toprule
+\textbf{Controller} & \textbf{0\,s clearance (unfair)} & \textbf{3\,s clearance (fair)} \\
+\midrule
+MAPPO (v2)    & ---            & $\mathbf{9.92 \pm 0.65}$ \\
+IPPO          & ---            & $10.34 \pm 0.31$ \\
+Max-Pressure  & $8.15 \pm 0.08$ & $21.63 \pm 1.00$ \\
+Fixed-Time    & $38.02 \pm 0.81$ & $47.03 \pm 0.59$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fair_comparison.png}
+\caption{Left: average waiting time for all controllers under matched
+\SI{3}{\second} clearance --- the learned controllers clearly win. Right: the
+confound --- charging the heuristics the same clearance they had been spared erases
+their apparent edge, lifting them well above the learned-controller band (shaded).}
+\label{fig:fair}
+\end{figure}
+
+\section{Fidelity Check Against the Published Recipe}
+To rule out the possibility that the cooperative controller is an under-powered
+strawman, it is compared against the canonical MAPPO recipe of
+Yu~et~al.~\cite{yu2021mappo} ($512 \times 512$ networks; see
+Chapter~\ref{ch:methodology}). The two are statistically indistinguishable on
+average wait ($9.92 \pm 0.65$~s for the project's MAPPO versus $10.21 \pm 0.28$~s for
+the paper recipe; Welch's $t$-test $p = 0.39$), with the project's configuration
+numerically slightly ahead. The implemented MAPPO is therefore a faithful and
+competitive representative of the method --- which makes the comparison that follows
+meaningful: any failure to beat independent learners cannot be blamed on a weak
+MAPPO.
+
+\section{The Central Result: Coordination Value \texorpdfstring{$\approx 0$}{= 0}}
+\label{sec:twist}
+MAPPO is the sophisticated, theoretically motivated choice, with a centralized critic
+designed to tame non-stationarity and solve credit assignment and a neighbour-coupled
+reward that explicitly encodes coordination. One expects it to beat a set of
+independent learners that ignore all of this. It does not.
+
+Against IPPO --- identical in every respect except its decentralized critic and its
+purely local reward --- MAPPO is \emph{statistically indistinguishable on every
+traffic-performance metric} across five seeds (Table~\ref{tab:coord},
+Figure~\ref{fig:coord}): average waiting time ($p = 0.24$), average halting
+($p = 0.53$), maximum halting ($p = 0.74$), and completed trips ($p = 0.55$) all show
+no significant difference. The \emph{only} reliable difference is that MAPPO performs
+about 21 more phase switches per episode ($1391 \pm 12$ versus $1369.6 \pm 8.4$,
+$p = 0.015$) --- additional control activity that yields no measurable performance
+benefit. The coordination value, defined as $\text{MAPPO} - \text{IPPO}$, is thus
+approximately zero on this network.
+
+\begin{table}[H]
+\centering
+\caption{MAPPO versus IPPO across all evaluation metrics (mean~$\pm$~std over seeds
+42--46; $p$ from Welch's $t$-test). Only the phase-switch count differs
+significantly, and it favours neither controller in performance terms.}
+\label{tab:coord}
+\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Metric} & \textbf{MAPPO} & \textbf{IPPO} & \textbf{$p$-value} \\
+\midrule
+Average wait (s)     & $9.92 \pm 0.65$   & $10.34 \pm 0.31$  & $0.236$ \\
+Average halting      & $3.91 \pm 0.11$   & $4.00 \pm 0.27$   & $0.534$ \\
+Maximum halting      & $14.2 \pm 1.6$    & $14.6 \pm 2.1$    & $0.745$ \\
+Completed trips      & $1261.6 \pm 0.9$  & $1261.2 \pm 1.1$  & $0.545$ \\
+Phase switches       & $1391 \pm 12$     & $1370 \pm 8$      & $\mathbf{0.015}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{coordination_value.png}
+\caption{The central finding. Across all five metrics, MAPPO and IPPO are
+statistically indistinguishable (``n.s.''), except for a small, performance-neutral
+difference in phase-switch count. The explicit coordination machinery buys no
+measurable advantage on the $2\times2$ network.}
+\label{fig:coord}
+\end{figure}
+
+\noindent This is the plot twist the dissertation set out to surface: on a small,
+inherently cooperative network, the full cooperative MARL package performs no better
+than independent learners. Chapter~\ref{ch:discussion} examines why, and
+Chapter~\ref{ch:futurework} sets out the experiments that would test the resulting
+hypothesis.

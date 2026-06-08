@@ -1,0 +1,14 @@
+# Local LaTeX engine (large binary) — not committed
+_tools/
+*.zip
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.bbl
+*.blg
+*.synctex.gz
+sweep.log

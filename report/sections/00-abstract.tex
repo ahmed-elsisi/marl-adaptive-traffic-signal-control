@@ -1,0 +1,35 @@
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+Multi-agent reinforcement learning (MARL) increasingly powers autonomous systems,
+from traffic control to distributed energy grids, yet a fundamental question
+remains open: when does an explicit \emph{coordination mechanism} actually help, and
+when do independent learners suffice? This dissertation answers that question on a
+controlled, inherently cooperative benchmark --- traffic signal control on a
+$2\times2$ grid of four intersections in SUMO, integrated with Ray RLlib.
+
+A Multi-Agent Proximal Policy Optimization (MAPPO) controller, with a centralized
+critic and a neighbour-coupled reward, was implemented and trained to stable
+convergence. Under a \emph{fair, matched-clearance} evaluation --- in which every
+controller pays the same realistic safety clearance --- the learned controller
+decisively outperforms both the fixed-time and max-pressure heuristics; a
+methodological finding of this work is that the heuristics' apparent strength was an
+artefact of an unfair zero-clearance evaluation. The project's MAPPO was further
+confirmed to match the canonical published recipe of Yu~et~al.\ (2021), establishing
+it as a faithful, competitive implementation rather than a weak strawman.
+
+The central result is a surprise. Compared against Independent PPO (IPPO) --- a fully
+decentralized comparator differing only in its decentralized critic and purely local
+reward --- MAPPO proves \emph{statistically indistinguishable} on every
+traffic-performance metric across five seeds; the only reliable difference is that
+the cooperative controller performs slightly more phase switches, with no
+performance benefit. On a $2\times2$ network the \emph{coordination value}
+(MAPPO~$-$~IPPO) is therefore approximately zero. The interpretation is not that
+coordination is worthless but that the network is small enough that incentives are
+already locally aligned, so independent learners recover coordinated behaviour
+implicitly. This locates precisely where explicit coordination should begin to pay
+off --- at larger network scales --- and motivates the future work of scaling to a
+$5\times5$ grid and of extending the study to genuine social dilemmas, both placed
+beyond this submission by compute constraints. The contribution is thus a careful
+negative result together with a sharpened hypothesis: the value of cooperation in
+MARL is not a fixed property of an algorithm but a function of scale.

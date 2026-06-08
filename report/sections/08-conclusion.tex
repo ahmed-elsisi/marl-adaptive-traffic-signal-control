@@ -1,0 +1,37 @@
+\chapter{Conclusion}
+\label{ch:conclusion}
+
+This dissertation set out to test a simple but consequential question on a
+controlled traffic benchmark: does an explicitly cooperative multi-agent algorithm
+actually outperform a set of independent learners when the two are matched in every
+other respect? The investigation produced a clear, and initially surprising, answer.
+
+A MAPPO traffic-signal controller was implemented on a \grid{2} grid, trained to
+stable convergence, and shown --- under a \emph{fair}, matched-clearance evaluation ---
+to outperform both the fixed-time and max-pressure heuristics decisively. A
+methodological contribution emerged along the way: the heuristic baselines had been
+flattered by an unfair zero-clearance evaluation, and correcting it (charging every
+controller the same safety clearance) both restored a fair comparison and
+strengthened the case for the learned controllers. The project's MAPPO was further
+confirmed to be a faithful implementation by matching the canonical published
+recipe.
+
+The central result is that, against this strong and faithful MAPPO, an Independent
+PPO comparator --- differing only in its decentralized critic and purely local
+reward --- proved \emph{statistically indistinguishable} on every traffic-performance
+metric. The sophisticated coordination machinery bought no measurable advantage; its
+only distinguishing behaviour was a slightly higher rate of phase switching that
+produced no benefit. On a \grid{2} network, the \emph{coordination value} is
+approximately zero.
+
+The interpretation is not that coordination is worthless, but that the testbed is
+too small to require it: at this scale incentives are already locally aligned, and
+independent learners recover coordinated behaviour implicitly. This precisely
+locates where explicit coordination should begin to matter --- at larger network
+scales --- and motivates the future work of scaling to \grid{5} and of extending the
+study to genuine social dilemmas, where reward structure and the temptation to
+defect are expected to make coordination indispensable. The contribution of this
+work is thus both a careful negative result and a sharpened hypothesis: the value of
+cooperation in multi-agent reinforcement learning is not a constant but a function
+of scale, and the controlled traffic setting establishes the baseline against which
+that function can now be measured.

@@ -1,0 +1,36 @@
+\chapter{Objectives}
+\label{ch:objectives}
+
+The overarching aim of this research is to study emergent social behaviour,
+cooperation, and the value of coordination in Multi-Agent Reinforcement Learning,
+using traffic signal control as a controlled, inherently cooperative case study.
+The realized objectives of this dissertation are:
+
+\begin{enumerate}[leftmargin=1.6em]
+  \item \textbf{Establish a strong cooperative baseline.} Implement and train a
+  MAPPO traffic-signal controller on a \grid{2} grid and demonstrate stable
+  convergence, then validate it against the standard heuristic controllers
+  (fixed-time and max-pressure) under a \emph{fair} evaluation protocol.
+
+  \item \textbf{Confirm implementation fidelity.} Compare the project's MAPPO
+  configuration against the canonical published recipe of
+  Yu~et~al.~\cite{yu2021mappo}, to establish that the cooperative agent is a faithful,
+  competitive implementation and not a weakened strawman.
+
+  \item \textbf{Quantify the value of coordination.} Implement Independent PPO
+  (IPPO) as a fully decentralized comparator that differs from MAPPO only in its
+  two defining design choices --- a decentralized critic and a purely local reward
+  --- and measure the \emph{coordination value}, defined as the performance
+  difference $\text{MAPPO} - \text{IPPO}$.
+
+  \item \textbf{Characterize and interpret the result.} Analyze \emph{why} the
+  measured coordination value takes the value it does at this network scale, and
+  connect the finding to the broader question of how coordination mechanisms scale
+  with network complexity.
+\end{enumerate}
+
+Two further aims --- characterizing the efficiency--equity trade-off and contrasting
+coordination against genuine social dilemmas --- motivate the future work outlined in
+Chapter~\ref{ch:futurework}, where network scale-up and a social-dilemma
+environment are identified as the natural next steps that compute constraints
+placed beyond the scope of this submission.

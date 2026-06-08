@@ -284,7 +284,12 @@ Actor activation is configurable via `actor_activation` in the model config (`mo
 
 ### Baseline Comparisons
 
-Outperformed both heuristic baselines:
+Outperformed both heuristic baselines **under fair, matched 3 s all-red clearance**
+(avg wait: MAPPO 9.92 ± 0.65 s vs Max-Pressure 21.63 ± 1.00 s and Fixed-Time
+47.03 ± 0.59 s; seeds 42–46). See the corrected fair-comparison note in the
+Phase-1 status section — the heuristics must be charged the same `min_red=3`
+clearance the RL agents pay; their old zero-clearance numbers (8.05 / 38.25) are
+not a valid comparison and must not be cited without the caveat.
 - Fixed-Time Controller: Pre-programmed cycles
 - Max-Pressure Controller: Minimize incoming-outgoing imbalance
 
@@ -347,8 +352,21 @@ Outperformed both heuristic baselines:
     deterministic (fixed-period flows), so the eval seed only perturbs
     car-following micro-behaviour — the "no significant difference" is robust for
     this demand scenario at n=5.
-- ✅ Standalone baselines still hold: IPPO is competitive with Max-Pressure
-  (~9.5 s vs 8.05 s avg wait) and crushes Fixed-Time (38.25 s).
+- ✅ **Baseline comparison — FAIR (matched 3 s clearance), conclusion REVERSED
+  vs the old zero-clearance figures (corrected 2026-06-09).** The RL agents pay
+  `min_red=3` (3 s all-red per switch) but the heuristic scripts defaulted to
+  ZERO clearance (`max-pressure.py` / `fixed-cycles.py`: `YELLOW=0, ALL_RED=0`),
+  so the earlier "Max-Pressure competitive/ahead (~8.05 s)" claim was purely a
+  no-clearance advantage. Re-ran both heuristics over seeds 42–46 with `--all-red 3`
+  (added the flag to `fixed-cycles.py`; max-pressure already had it). **Under fair,
+  matched clearance the RL controllers beat both heuristics decisively** (avg wait,
+  seeds 42–46): MAPPO **9.92 ± 0.65 s**, IPPO **10.34 ± 0.31 s**, Max-Pressure
+  **21.63 ± 1.00 s** (was 8.15 ± 0.08 at 0 s), Fixed-Time **47.03 ± 0.59 s** (was
+  38.02 ± 0.81 at 0 s). RL-vs-Max-Pressure Welch t≈22, p≪0.001. Within-controller
+  proof is airtight: the *same* Max-Pressure goes 8.05 → 21.6 s when charged the
+  same 3 s. **Report ONLY the matched-3 s numbers in the thesis; never cite the
+  0 s figures (8.05 / 38.25) without the clearance caveat.** Artifacts:
+  `RP-5/build_fair_comparison.py`, `RP-5/metrics/fair_comparison/`.
 - ✅ **paper_baseline run COMPLETE (run `e7611`, 200 iters, finished 2026-06-05),
   stored in `reference/paper_baseline 512x512 - reworked - e7611/`.** The
   Hanabi-preset [512,512] comparator (lr=7e-4, num_sgd_iter=15, sgd_minibatch=

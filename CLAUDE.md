@@ -30,13 +30,13 @@ Investigate when and why cooperation emerges versus exploitation in multi-agent 
 - Algorithm: MAPPO (Multi-Agent Proximal Policy Optimization)
 - Goal: Establish baseline where cooperation naturally benefits all agents
 
-**Semester 2 (PLANNED):** Social Dilemma Testing
-- Phase 1: On the existing 2×2 grid, compare the currently implemented MAPPO against the paper baseline MAPPO (Yu et al. 2021, "The Surprising Effectiveness of PPO in Cooperative Multi-Agent Games") and against IPPO. **5×5 grid scaling is deprioritized** — see "Scope changes" below.
-- Phase 2: Implement social dilemma environment — **Harvest** selected (Leibo et al. 2017), built from scratch in `RP-6/`. See Phase 2 section below for the experiment matrix.
-- Phase 3: Cross-environment analysis of cooperation mechanisms
+**Semester 2 (traffic scope):** Cooperation vs. Independent Learning
+- On the existing 2×2 grid, compare the currently implemented MAPPO against the paper baseline MAPPO (Yu et al. 2021, "The Surprising Effectiveness of PPO in Cooperative Multi-Agent Games"), against IPPO, and against the fixed-time and max-pressure heuristics. Quantify the coordination value (MAPPO − IPPO).
 
-**Scope changes (in-flight):**
-- The originally planned 5×5 grid scale-up has been **set aside**. The MAPPO/IPPO comparison and the social-dilemma phase are now the priority — extending the SUMO network to 25 intersections costs implementation and training time without changing the conclusions the project is trying to draw about cooperation emergence. If time remains after Phases 1 and 2 land, 5×5 can be revisited.
+**Scope:** This submission covers the traffic (pure-coordination) environment only.
+A social-dilemma environment and a 5×5 scale-up are left as future work (see
+"Future Work" below) — both set aside under the project's time and compute
+constraints.
 
 ### The Spectrum Being Studied
 ```
@@ -305,7 +305,7 @@ not a valid comparison and must not be cited without the caveat.
 - Output comparison metrics and analyze the performance
 
 **Task 1.2 (DEPRIORITIZED):** Scale environment 2×2 → 5×5 (25 intersections)
-- Originally planned but **set aside**: the MAPPO-vs-paper-baseline and MAPPO-vs-IPPO comparisons (Tasks 1.1, 1.3, 1.4) and the social-dilemma phase carry the research conclusions, and the scale-up is implementation-heavy without changing those conclusions.
+- Originally planned but **set aside**: the MAPPO-vs-paper-baseline and MAPPO-vs-IPPO comparisons (Tasks 1.1, 1.3, 1.4) carry the research conclusions, and the scale-up is implementation-heavy without changing those conclusions.
 - If revisited later: maintain lane config and detector setup, adjust traffic demand proportionally, verify observation space (70 dim/agent, 1,750 dim centralized critic). The 5×5 SUMO network skeleton was prototyped earlier but reverted (see commits `fd14409`, `350242d`).
 
 **Task 1.3:** Implement Independent PPO (IPPO) — *scaffolded*
@@ -341,8 +341,8 @@ not a valid comparison and must not be cited without the caveat.
   ~21 more phase switches per episode (1391±12 vs 1370±8, p=0.015) with no
   performance benefit. Interpretation: traffic is the pure-coordination end of
   the spectrum where incentives are already aligned, so the centralized critic +
-  neighbour reward buy essentially nothing at convergence — exactly the baseline
-  that makes the Phase-2 social-dilemma contrast meaningful. Coordination value
+  neighbour reward buy essentially nothing at convergence — exactly the result the coordination-value
+  question was designed to surface. Coordination value
   = MAPPO − IPPO ≈ 0 here. (Eval/sweep artifacts: `RP-5/metrics/cmp_MAPPO_fa6ad/`,
   `cmp_IPPO_adfef/`.)
   - Methodology notes: the single-seed (seed 42) eval alone showed IPPO
@@ -371,8 +371,7 @@ not a valid comparison and must not be cited without the caveat.
   stored in `reference/paper_baseline 512x512 - reworked - e7611/`.** The
   Hanabi-preset [512,512] comparator (lr=7e-4, num_sgd_iter=15, sgd_minibatch=
   train_batch=32768, clip=0.2, entropy=0.015, grad_clip=10.0, ReLU, actor+critic
-  [512,512]), trained on CPU (`num_gpus: 0`) in parallel with the Phase-2 Harvest
-  matrix on the GPU. Converged cleanly: last-10 mean **-52.04 ± 0.58**, expl_var
+  [512,512]), trained on CPU (`num_gpus: 0`). Converged cleanly: last-10 mean **-52.04 ± 0.58**, expl_var
   **0.91**, vf_loss ~0.25 (stable), entropy decayed to 0.53. Neighbour `-0.4`,
   centralized critic, `min_red=3` (post-patch). Final `checkpoint_000200` is a
   standard RLlib checkpoint (`algorithm_state.pkl` + `policies/` +
@@ -400,182 +399,20 @@ not a valid comparison and must not be cited without the caveat.
     paper_baseline alongside fa6ad/adfef on avg wait / throughput / halts. **Not
     yet run** for e7611.
 
-### Phase 2: Social Dilemma Environment (Weeks 4-9)
+### Future Work: Social Dilemma & Scale
 
-**Selected env: Harvest (Leibo et al. 2017, "Multi-agent Reinforcement Learning in
-Sequential Social Dilemmas")**, implemented from scratch in `RP-6/` rather than ported
-from the `sequential_social_dilemmas` repo (which targets RLlib 0.x APIs and would
-fight the connector / MeanStdFilter pipeline). Decided 2026-05-07. The two non-selected
-candidates (custom traffic-tolling, predator-prey) are documented in the plan file but
-were rejected: custom traffic forces designing the dilemma payoff structure ourselves
-(circular research design), predator-prey lacks a true defection axis at the within-team
-level. Detailed design is in `~/.claude/plans/while-the-training-is-piped-bachman.md`.
+Two directions are left for future work (out of scope for this submission, which
+covers the traffic MAPPO-vs-IPPO comparison):
 
-**Env scoping decisions:**
-- 12×8 grid, **4 agents** (matches Phase-1 SUMO setup → cleanest cross-env synthesis).
-- 1000-step episodes, no early termination.
-- Actions: `Discrete(6)` — N/S/E/W movement, stay, collect-apple. Tag action deferred
-  (would extend to `Discrete(7)` if punishment dynamics get studied later).
-- Observations: `(15, 15, 3)` uint8 RGB egocentric patches. All agents render
-  identically (no self/other distinction). Walls = red, apples = green, agents = blue.
-- Apple regrowth (the dilemma core): `P_regrow = 0.01 * count_neighbours_within_radius_2`,
-  zero regrowth where there are no neighbours. **A fully-depleted region cannot recover
-  within an episode** — over-harvesting is permanent, which is what makes it a dilemma.
-
-**Reward design:**
-- Sparse +1 per apple collected, blended with team average via `shared_reward_weight`.
-- The single load-bearing experimental dimension. Three values swept:
-  `0.0` (pure individual / canonical SSD / defection-permitting),
-  `0.5` (mixed),
-  `1.0` (fully team-shared / cooperation structurally enforced).
-- No throughput/pressure/shaping terms (those were SUMO-specific; would muddy the
-  dilemma signal here).
-
-**Experiment matrix (33 runs total):**
-| Algorithm | Reward sharing | Seeds | Subtotal |
-|---|---|---:|---:|
-| MAPPO | individual / mixed / team | 5 each | 15 |
-| IPPO  | individual / mixed / team | 5 each | 15 |
-| FixedGreedy ("collect every visible apple") | n/a | 3 | 3 |
-
-200 iters per run. Seeds 42–46. Pairwise comparisons via Welch's t-test on the four
-key metrics (sustainability, Gini, total apples, time-to-depletion). The
-reward-sharing axis directly answers thesis question #1 ("how do individual vs
-shared rewards affect cooperation?") which Phase 1 cannot isolate (Phase 1 varies
-critic + reward simultaneously). **Population-based training: dropped** — would
-multiply the matrix 4-8× and Phase 1 didn't use it, so symmetric experiments are
-more valuable than asymmetric depth.
-
-**Phase-2 status (as of 2026-06-02):**
-- ✅ Week 4 done: env + obs builder + reward + metrics + smoke tests in `RP-6/`
-  (`tests/test_harvest_smoke.py`, all pass — random rollout, dilemma-core
-  invariant, reward blending).
-- ✅ Week 5 done: CNN actor + centralized CNN critic on the full grid (not
-  concat-of-views), IPPO CNN model with decentralized critic,
-  `train_mappo_harvest.py`, the team smoke config. CPU shape tests pass
-  (`tests/test_models_shape.py`). `harvest_env.py:_build_info` exposes
-  `global_state` (and `step_normalized`) in every agent's info dict.
-- ✅ Week 6 done: all **six** sweep configs
-  (`harvest_{mappo,ippo}_{individual,mixed,team}.yaml`, `shared_reward_weight`
-  0.0/0.5/1.0), `train_ippo_harvest.py`, the 30-run matrix driver `run_matrix.py`,
-  the FixedGreedy baseline `run_fixed_greedy.py`, `evaluate_harvest.py`,
-  `plot_harvest_eval.py`, the behaviour visualizer `visualize_harvest.py`, and
-  `tests/smoke_new_configs.py` (all six configs build).
-- 🐛 **Three critic bugs found and fixed (2026-06-02 → 06-03) — the earlier matrix in
-  `RP-6/results-old/` is INVALID and must not be cited:**
-  1. **Centralized-critic `global_state` never reached the critic.** The
-     injection was attached via `PolicySpec config={"postprocess_fn": ...}`, a key
-     `PPOTorchPolicy` **silently ignores** in RLlib 2.35 — so MAPPO trained with
-     all-zero `global_state` (the centralized critic was effectively blind; the
-     earlier Week-5 "postprocessing hook firing confirmed" note was wrong). Now
-     rewired via `HarvestCentralizedCriticCallback.on_postprocess_trajectory` +
-     `.callbacks(...)`; mirrored for IPPO via `HarvestIPPOPostprocessCallback`.
-     **Verified live**: the callback fires and injects non-zero `global_state`
-     (max=255) in a real train step.
-  2. **`vf_clip_param: 10.0` zeroed the critic gradient** (Harvest returns are
-     O(250–950)). Raised to **10000.0** across all six configs.
-  3. **The centralized critic never shaped the advantages (found 2026-06-03, the
-     big one).** `global_state` is not a `compute_actions` column, so during
-     rollout `value_function()` fell back to a **zero grid**
-     (`_build_eval_fallback_global`) → the GAE advantage baseline (VF_PREDS) was a
-     near-constant value, and the default GAE ran on those garbage values. The
-     callback injected the real `global_state` only *after* GAE, so the centralized
-     critic was only trained to predict targets bootstrapped from the zero baseline
-     — it never influenced ADVANTAGES/VALUE_TARGETS. Symptom: `vf_explained_var`
-     stuck **~0.09 across ALL reward conditions** (individual/mixed/team alike) with
-     `vf_loss` *rising*; the policy still learned (REINFORCE-like, constant
-     baseline). **IPPO was unaffected** — its critic uses local obs, which IS
-     available at rollout, so MAPPO was being handicapped vs IPPO. Fix:
-     `recompute_central_gae()` in `on_postprocess_trajectory` recomputes VF_PREDS by
-     forwarding the central critic on the real `global_state`, then re-runs
-     `compute_advantages` (standard RLlib CTDE pattern). **Verified live (team,
-     w=1.0):** `vf_explained_var` 0.09 (flat) → **0.34 and rising** by iter 54, and
-     `vf_loss` flipped from rising to falling/stable. MAPPO no longer handicapped.
-  - **Value normalization left OFF deliberately:** `update_value_normalization` is
-     never called (so `value_mean=0`/`value_std=1`), but the model denormalizes
-     *inside* `value_function` (which RLlib also uses for the loss), so wiring it
-     would blow up value-loss gradients by ~std². With bug 3 fixed the critic is
-     healthy without it (explained-var 0.34, loss stable), so it stays off.
-  - Also added a `step_normalized` time feature to both critics (ViewRequirement
-    + concat, symmetric across MAPPO/IPPO so the comparison stays fair). These
-    fixes **changed the model architecture**, so `results-old/` checkpoints can no
-    longer be loaded into the current models.
-- ✅ All checks pass: env shapes, both CNN forward passes, all six configs build,
-  and the centralized-critic data path verified end-to-end.
-- 🚀 **30-run RL matrix IN PROGRESS — MAPPO half DONE, IPPO half re-launching (status 2026-06-06).**
-  Re-launched 2026-06-03 after the bug-3 fix. Order is **team → mixed → individual**
-  (both algos) in `run_matrix.py` so the decisive critic check (team) runs first. The
-  first attempt (2026-06-02, individual-first) is what surfaced bug 3 — its data was
-  discarded. Idempotent (stamps under `results/.matrix_done/`; tolerates the Windows
-  pyarrow crash by checking for a checkpoint, not the exit code), ran in parallel with
-  the CPU paper_baseline (`num_gpus: 0`). ~200 iters/cell.
-  - ✅ **All 15 MAPPO cells COMPLETE and VERIFIED (2026-06-06).** team / mixed /
-    individual × seeds 42–46, all in `results/mappo_harvest/PPO_harvest_*`. Each
-    reached `training_iteration = 200`, kept the last 5 checkpoints
-    (`checkpoint_000003`–`checkpoint_000007`; earlier three rotated out by
-    `keep_checkpoints_num: 5`), and `checkpoint_000007` (the iter-200 final) is a
-    complete RLlib checkpoint (`algorithm_state.pkl` + `policies/` +
-    `rllib_checkpoint.json`). Verified each run dir exists on disk and the stamp's
-    `final_checkpoint` resolves — i.e. none were falsely stamped on leftover Tune
-    metadata. Final training rewards tightly clustered **976–992** across all 15
-    (team ~977–983, mixed ~985–992, individual ~982–987).
-  - 🔌 **IPPO half interrupted by a power cut + being re-run from scratch (2026-06-06).**
-    `ippo_team_seed42` had legitimately stamped (reached a checkpoint), but the trial
-    dir was manually deleted to re-run it cleanly. **Gotcha confirmed:** `run_matrix.py`
-    skips purely on stamp existence (`_has_stamp`), not on the run dir — so a deleted
-    run whose stamp survives is silently skipped. Fix applied: deleted the stale stamp
-    `results/.matrix_done/harvest_ippo_team_seed42.json` **and** the orphan Tune
-    metadata left in `results/ippo_harvest/` (`experiment_state-*.json`,
-    `basic-variant-state-*.json`, `tuner.pkl`, `.validate_storage_marker`) that pointed
-    at the now-gone trial. `python run_matrix.py --configs ippo --dry-run` then confirmed
-    all 15 IPPO cells queue to RUN from the start. **General recovery rule:** to re-run
-    any cell cleanly, delete its `.matrix_done/<config>_seed<N>.json` stamp (a true
-    mid-cell interrupt never stamps, since stamping requires a found checkpoint).
-  - ⚡ **IPPO rollout workers bumped 3 → 5 (2026-06-06, commit `b4276b1`).** With the
-    CPU paper_baseline finished, the Ryzen 5 3600's 6 physical cores are free; 5 workers
-    + 1 driver = 6 cores. Edited `num_rollout_workers` in all three `harvest_ippo_*.yaml`.
-    Pure infrastructure speedup of the rollout phase — `train_batch_size` stays 32768,
-    so learning is unchanged and the 5-seed sweep still averages over RNG interleaving.
-    GPU untouched (single RTX 3060Ti, already fully assigned to the trainer at
-    `num_gpus: 1` — there is no second GPU to add). ⚠ Note the 15 done MAPPO cells ran
-    at 3 workers; worker count is infra-only (not a learning hyperparameter), so the
-    MAPPO-vs-IPPO comparison stays valid, but flag the asymmetry if byte-level setup
-    parity is ever questioned. Launch the IPPO half with `python run_matrix.py
-    --configs ippo`.
-  - **Canary**: the first team cell confirmed the bug-3 fix (`vf_explained_var`
-    0.09 → 0.34, rising); watch each new condition's explained-var stays healthy before
-    trusting it (IPPO's decentralized critic was never affected by bug 3, so this is
-    mainly a MAPPO concern — already passed).
-- ✅ **FixedGreedy baseline COMPLETE (2026-06-05, ran in parallel on CPU).**
-  `python run_fixed_greedy.py --episodes 5 --seed 42 --out-dir metrics/fixed_greedy`
-  → n=5 (env seeds 42–46), CSVs in `RP-6/metrics/fixed_greedy/`. Standalone (no
-  Ray/GPU; reads `env.apple_grid` directly), so it didn't touch the running GPU
-  matrix. Results (mean ± std): total apples **1750.2 ± 21**, Gini **0.009**,
-  equality 0.983, sustainability **0.795 ± 0.02**, **time-to-depletion = 1000
-  (full episode — the commons never collapses under the naive rule)**, per-agent
-  ~432–441 (symmetric). **Interpretation anchor:** greedy is simultaneously
-  productive, sustainable, AND equitable here, so it is the floor the RL
-  conditions are measured against — any RL cell (esp. IPPO / individual w=0.0)
-  scoring *below* this on sustainability or time-to-depletion is the
-  tragedy-of-commons signal. Note: FixedGreedy actions ignore
-  `shared_reward_weight` (reads grid state directly), so these four dilemma
-  metrics are identical across all three reward conditions — one run covers the
-  baseline; only the logged `total_team_reward` column would differ by weight.
-- ⚠ **Cosmetic post-fit Windows crash persists**: after `tuner.fit()` writes the
-  checkpoint, Ray's `ExperimentAnalysis`/pyarrow triggers a Windows access
-  violation; checkpoint/progress.csv/params.json are intact and only the exit code
-  is non-zero (segfault/0xC0000005). Verify success by inspecting the result dir.
-- ⏳ Remaining (Weeks 7–9): matrix completion → `evaluate_harvest.py` over all
-  checkpoints → `plot_harvest_eval.py` + `visualize_harvest.py` → Welch t-tests on
-  the four metrics → Phase-2 results (not yet available).
-
-### Phase 3: Cross-Environment Analysis (Weeks 10-15)
-
-**Synthesis:**
-- Compare learned behaviors: Traffic (coordination) vs Dilemma (conflict)
-- Efficiency-equity analysis (Gini coefficient)
-- Statistical significance testing
-- Video demonstrations of emergent behaviors
+- **Social-dilemma environment.** Extend the coordination↔dilemma spectrum to the
+  exploitation end with a sequential social dilemma (e.g. an apple-harvesting
+  commons, Leibo et al. 2017), to test how individual vs shared rewards affect
+  cooperation where defection is tempting — the question that traffic (pure
+  coordination) cannot isolate.
+- **Network scale-up (2×2 → 5×5).** Re-run the MAPPO-vs-IPPO contrast on a larger
+  grid to test whether coordination value grows with network size. A 5×5 SUMO
+  skeleton was prototyped then reverted (commits `fd14409`, `350242d`); compute
+  constraints (single GPU) deferred it.
 
 ---
 
@@ -621,33 +458,6 @@ Applied/
 │   ├── logs/
 │   │   └── tensorboard/               # TensorBoard training logs
 │   └── tests/                         # Validation and setup scripts
-├── RP-6/                              # Semester 2 Phase 2 (Harvest social dilemma)
-│   ├── train_mappo_harvest.py        # MAPPO entry (CNN + centralized critic; global_state via callback)
-│   ├── train_ippo_harvest.py         # IPPO entry (CNN + decentralized critic)
-│   ├── run_matrix.py                 # 30-run matrix driver (idempotent; .matrix_done stamps; tolerates pyarrow crash)
-│   ├── run_fixed_greedy.py           # FixedGreedy heuristic baseline (3 runs)
-│   ├── evaluate_harvest.py           # Eval a checkpoint (MAPPO or IPPO); MeanStdFilter applied; metric CSVs
-│   ├── plot_harvest_eval.py          # Static charts from eval CSVs (apples-on-grid, metric bars, per-agent)
-│   ├── visualize_harvest.py          # Behaviour GIFs: per-policy + 2×2 panels (--auto / --checkpoint / --greedy)
-│   ├── Harvest_Phase2_Explained.pdf  # Non-specialist explainer of Phase 2 (dilemma, files, matrix, metrics)
-│   ├── marl_env/
-│   │   ├── harvest_env.py             # HarvestEnv (RLlib MultiAgentEnv); 12×8 grid, 4 agents, Discrete(6)
-│   │   ├── harvest_obs.py             # 15×15×3 RGB egocentric obs + render_global_rgb (full-grid RGB)
-│   │   ├── harvest_reward.py          # Sparse +1 per apple + shared_reward_weight blend (0.0/0.5/1.0)
-│   │   └── harvest_metrics.py         # Gini, sustainability, equality, time-to-depletion + CSV writers
-│   ├── models/
-│   │   ├── mappo_cnn_model.py         # MAPPOCNNModelCentralizedCritic + HarvestCentralizedCriticCallback
-│   │   └── ippo_cnn_model.py          # IPPOCNNModelDecentralizedCritic + HarvestIPPOPostprocessCallback
-│   ├── configs/                       # harvest_{mappo,ippo}_{individual,mixed,team}.yaml (6 configs; w=0.0/0.5/1.0)
-│   ├── tests/
-│   │   ├── test_harvest_smoke.py      # Week-4: random-rollout + dilemma-core + reward-blend
-│   │   ├── test_models_shape.py       # Week-5: CPU shape-checks for env + both CNN models + postprocessing
-│   │   └── smoke_new_configs.py       # Week-6: all six configs build a PPOConfig
-│   ├── results/                       # Ray Tune output (gitignored); matrix writes here
-│   ├── results-old/                   # INVALID prior matrix (pre-critic-fix); gitignored, kept for reference only
-│   └── metrics/                       # Eval CSVs + plots + behaviour GIFs (metrics/viz/)
-├── shared/                            # Phase-3 cross-env analysis prep — NEW
-│   └── (plot_helpers.py, cross_env_synthesis.py — both built in Phase-2 Week 9)
 └── Emergent Social Behaviour... Interim.pdf  # Interim report (Semester 1)
 ```
 
@@ -757,8 +567,8 @@ Outputs saved to `metrics/`:
 - Queue lengths (halted vehicle counts)
 - Pressure imbalance (incoming - outgoing)
 
-**Cooperation Metrics (S2):**
-- Resource sustainability (for Harvest)
+**Cooperation Metrics (future-work social-dilemma env):**
+- Resource sustainability
 - Collective welfare indicators
 - Gini coefficient (fairness/equity)
 - Exploitation rates
@@ -808,7 +618,7 @@ Outputs saved to `metrics/`:
 - Multi-timestep grid world environments
 - Dilemma structure persists over time
 - Agents must balance immediate vs long-term
-- Examples: Harvest (apple gathering), Cleanup
+- Examples: apple-gathering commons, Cleanup
 
 ### Algorithm Comparisons
 
@@ -828,10 +638,10 @@ Outputs saved to `metrics/`:
 **Challenge:** 5×5 grid computational cost
 - Resolution: deprioritized for Semester 2 (see Scope changes). If revisited, maintain 3 workers and extend training time as needed.
 
-**Challenge:** Social dilemma environment selection
-- Resolved 2026-05-07: Harvest selected (Leibo et al. 2017), implemented from scratch
-  in `RP-6/` rather than ported from `sequential_social_dilemmas` repo. Custom traffic
-  and predator-prey rejected — see Phase 2 section above.
+**Challenge:** Social dilemma environment (future work)
+- A sequential social dilemma (e.g. an apple-harvesting commons, Leibo et al. 2017)
+  is the natural next environment for extending the study to the exploitation end of
+  the spectrum. Left as future work under the project's time constraints.
 
 **Challenge:** Fair IPPO-MAPPO comparison
 - Solution: Keep all algorithm hyperparameters and the actor architecture identical; vary only the two MARL design choices that define the contrast — centralized vs decentralized critic, and shared/neighbour-coupled vs purely local reward. This is a "fully cooperative MARL package" vs "fully independent learners" comparison, not a single-variable critic ablation.
@@ -847,7 +657,7 @@ Outputs saved to `metrics/`:
 ### Time Management
 
 **Challenge:** Ambitious S2 scope
-- Solution: Prioritize core experiments (traffic scaling + dilemma baseline), mark population training as optional
+- Solution: Prioritize the core traffic experiments (MAPPO vs IPPO vs heuristics); leave the social-dilemma environment and 5×5 scale-up as future work.
 
 ---
 
@@ -914,16 +724,16 @@ git push
 - [x] Emergent coordination behaviors observed
 - [x] Interim report submitted
 
-### Semester 2 (Targets)
-- [ ] Compare against baseline MAPPO from "The Surprising Effectiveness of PPO in Cooperative Multi-Agent Games"
-- [ ] IPPO baseline trained for comparison
-- [ ] Coordination value quantified (MAPPO - IPPO)
-- [ ] Social dilemma environment implemented
-- [ ] Cross-environment comparison complete
-- [ ] Statistical analysis of cooperation mechanisms
+### Semester 2 (Targets — traffic scope)
+- [x] IPPO baseline trained for comparison
+- [x] Coordination value quantified (MAPPO − IPPO ≈ 0 at 2×2)
+- [x] Outperform heuristic baselines under fair (matched-clearance) evaluation
+- [~] Compare against paper-baseline MAPPO (Yu et al. 2021) — checkpoint trained; multi-seed eval pending
 - [ ] Final thesis submitted
 - [ ] Defense presentation delivered
-- [~] 5×5 traffic environment functional — **deprioritized** (see Scope changes); revisit only if time remains after Phases 1–2.
+
+**Future work (out of scope):** social-dilemma environment, cross-environment
+comparison, and 5×5 scale-up.
 
 ---
 
@@ -1026,11 +836,10 @@ when policies change phase often, which can shift the effective `train_batch_siz
 
 When helping with this project:
 
-1. **Understand the dual-environment methodology** - Traffic is baseline, dilemmas are the research contribution
+1. **The submission is traffic-only** - the 2×2 SUMO MAPPO-vs-IPPO comparison; a social-dilemma environment is future work, not part of this scope.
 2. **Respect the comparative framework** - MAPPO vs IPPO contrasts the full cooperative MARL package (centralized critic + shared/neighbour-coupled reward) against the full independent-learners package (decentralized critic + purely local reward). Coordination value = MAPPO performance − IPPO performance.
 3. **Recognize CTDE is central** - Centralized training, decentralized execution
 4. **Traffic is cooperative** - Network effects align incentives
-5. **Dilemmas create conflict** - Individual gain from exploitation
-6. **S2 Phase-2 env is built and training** — Harvest (Leibo 2017), from scratch in `RP-6/`. Detailed design: `~/.claude/plans/while-the-training-is-piped-bachman.md`. As of 2026-06-02 the full pipeline (env, both CNN models, 6 configs, matrix driver, eval, viz) is done, the two centralized-critic bugs are fixed (see Phase-2 status), and the 30-run matrix is running. `RP-6/results-old/` is the INVALID pre-fix matrix — do not cite it.
-7. **Time constraints matter** - 15-week S2 timeline is tight
-8. **Non-specialist audience** - Presentations must be accessible
+5. **Baselines must use matched clearance** - the heuristics' zero-clearance numbers (8.05/38.25) are not valid comparisons; cite only the matched-3s figures (MAPPO 9.92 vs Max-Pressure 21.63 vs Fixed-Time 47.03).
+6. **Time constraints matter** - 15-week S2 timeline is tight
+7. **Non-specialist audience** - Presentations must be accessible

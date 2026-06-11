@@ -1,0 +1,1904 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Emergent Social Behaviour &amp; Dilemmas in Multi-Agent Reinforcement Learning — Ahmed Wael Elsisi</title>
+<meta name="author" content="Ahmed Wael Elsisi">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main>
+
+<!-- ============================== TITLE PAGE ============================== -->
+<section class="titlepage">
+  <svg class="crest" viewBox="0 0 100 100" aria-label="University crest">
+    <circle cx="50" cy="50" r="46" fill="none" stroke="#1f4e79" stroke-width="3"/>
+    <path d="M50 16 L78 30 V52 C78 70 66 80 50 86 C34 80 22 70 22 52 V30 Z"
+          fill="#eef3f8" stroke="#1f4e79" stroke-width="2.5"/>
+    <path d="M34 50 h32 M50 34 v32" stroke="#b8341b" stroke-width="3"/>
+    <circle cx="50" cy="50" r="6" fill="#1f4e79"/>
+  </svg>
+  <h1>Emergent Social Behaviour &amp; Dilemmas in Multi-Agent Reinforcement Learning</h1>
+  <div class="sub">When does coordination actually help? A controlled study on traffic signal control</div>
+  <div class="by">By</div>
+  <div class="name">Ahmed Wael Elsisi — 214647</div>
+  <div class="deg">A Dissertation submitted to the Faculty of Engineering, The British University
+    in Egypt, in Partial Fulfilment of the requirements for the bachelor's degree in
+    Electrical Engineering.</div>
+  <div class="foot">
+    Supervisor: Dr. Randa Mohamed<br>
+    Electrical Engineering Department — Computer Engineering Programme<br>
+    June 2026
+  </div>
+</section>
+
+<!-- ============================== ABSTRACT ============================== -->
+<section class="abstract frontbreak" id="abstract">
+  <h1>Abstract</h1>
+  <p>Multi-agent reinforcement learning (MARL) increasingly powers autonomous systems, from
+  traffic control to distributed energy grids, yet a deceptively simple question remains
+  open: when does an explicit <em>coordination mechanism</em> actually earn its keep, and when
+  do independent learners do just as well? This dissertation answers that question on a
+  controlled, inherently cooperative benchmark — traffic signal control on a 2&times;2 grid of
+  four intersections, simulated in SUMO and trained through Ray RLlib.</p>
+
+  <p>A Multi-Agent Proximal Policy Optimization (MAPPO) controller, built around a centralized
+  critic and a neighbour-coupled reward, was implemented and trained to stable convergence.
+  Under a <em>fair, matched-clearance</em> evaluation — in which every controller pays the same
+  realistic safety clearance on each phase change — the learned controller decisively
+  outperforms both the fixed-time and max-pressure heuristics, cutting average waiting time to less
+  than half of max-pressure's and roughly a fifth of fixed-time's. A methodological emphasis of this
+  work is that controllers must be charged the same realistic operating cost for any comparison
+  between them to be meaningful. The project's MAPPO was further
+  confirmed to match the canonical published recipe of Yu&nbsp;et&nbsp;al.&nbsp;(2021),
+  establishing it as a faithful, competitive implementation rather than a weak strawman.</p>
+
+  <p>The central result is a surprise. Compared against Independent PPO (IPPO) — a fully
+  decentralized comparator differing only in its decentralized critic and purely local reward —
+  MAPPO proves <em>statistically indistinguishable</em> on every traffic-performance metric
+  across five seeds; the only reliable difference is that the cooperative controller performs
+  slightly more phase switches, with no performance benefit. On a 2&times;2 network the
+  <em>coordination value</em> (MAPPO&nbsp;&minus;&nbsp;IPPO) is therefore approximately zero. The
+  interpretation is not that coordination is worthless, but that the network is small enough
+  that incentives are already locally aligned, so independent learners recover coordinated
+  behaviour on their own. This locates precisely where explicit coordination should begin to
+  pay off — at larger scales — and motivates the future work of scaling to a 5&times;5 grid
+  (which was built and whose training was attempted, but proved too expensive on the available
+  hardware) and of extending the study to genuine social dilemmas. The contribution is thus a
+  careful negative result paired with a sharpened hypothesis: the value of cooperation in MARL
+  is not a fixed property of an algorithm but a function of scale.</p>
+
+  <p class="keywords"><strong>Keywords:</strong> multi-agent reinforcement learning, MAPPO,
+  IPPO, centralized training with decentralized execution, traffic signal control, coordination
+  value, social dilemmas, SUMO, proximal policy optimization.</p>
+</section>
+
+<!-- ============================== TOC ============================== -->
+<section class="toc frontbreak" id="toc">
+  <h1>Table of Contents</h1>
+  <ol>
+    <li><a href="#ch1"><span>1. Introduction</span><span class="lead"></span><span class="pg">1</span></a></li>
+    <li><a href="#ch2"><span>2. Background and Literature Review</span><span class="lead"></span><span class="pg">4</span></a></li>
+    <li><a href="#ch3"><span>3. Objectives</span><span class="lead"></span><span class="pg">11</span></a></li>
+    <li><a href="#ch4"><span>4. Detailed Tasks</span><span class="lead"></span><span class="pg">13</span></a></li>
+    <li><a href="#ch5"><span>5. Project Plan and Gantt Chart</span><span class="lead"></span><span class="pg">20</span></a></li>
+    <li><a href="#ch6"><span>6. Implementation</span><span class="lead"></span><span class="pg">22</span></a></li>
+    <li><a href="#ch7"><span>7. Results and Analysis</span><span class="lead"></span><span class="pg">31</span></a></li>
+    <li><a href="#ch8"><span>8. Discussion</span><span class="lead"></span><span class="pg">38</span></a></li>
+    <li><a href="#ch9"><span>9. Future Work</span><span class="lead"></span><span class="pg">42</span></a></li>
+    <li><a href="#ch10"><span>10. Conclusion</span><span class="lead"></span><span class="pg">44</span></a></li>
+    <li><a href="#references"><span>References</span><span class="lead"></span><span class="pg">46</span></a></li>
+  </ol>
+</section>
+
+<!-- ============================== LIST OF FIGURES ============================== -->
+<section class="toc frontbreak" id="lof">
+  <h1>List of Figures</h1>
+  <ol style="list-style:none;padding-left:0">
+    <li><a href="#fig1-1"><span>1.1 &nbsp; The coordination–social-dilemma spectrum</span><span class="lead"></span><span class="pg">2</span></a></li>
+    <li><a href="#fig2-1"><span>2.1 &nbsp; The reinforcement-learning interaction loop</span><span class="lead"></span><span class="pg">4</span></a></li>
+    <li><a href="#fig2-2"><span>2.2 &nbsp; PPO's clipped surrogate objective</span><span class="lead"></span><span class="pg">6</span></a></li>
+    <li><a href="#fig2-3"><span>2.3 &nbsp; Centralized training with decentralized execution</span><span class="lead"></span><span class="pg">9</span></a></li>
+    <li><a href="#fig2-4"><span>2.4 &nbsp; The Harvest sequential social dilemma</span><span class="lead"></span><span class="pg">10</span></a></li>
+    <li><a href="#fig4-1"><span>4.1 &nbsp; Composition of the 70-dimensional observation</span><span class="lead"></span><span class="pg">13</span></a></li>
+    <li><a href="#fig4-2"><span>4.2 &nbsp; The four-phase action space</span><span class="lead"></span><span class="pg">15</span></a></li>
+    <li><a href="#fig4-3"><span>4.3 &nbsp; The five-component reward function</span><span class="lead"></span><span class="pg">16</span></a></li>
+    <li><a href="#fig4-4"><span>4.4 &nbsp; Actor and critic network design</span><span class="lead"></span><span class="pg">18</span></a></li>
+    <li><a href="#fig5-1"><span>5.1 &nbsp; Project Gantt chart</span><span class="lead"></span><span class="pg">21</span></a></li>
+    <li><a href="#fig6-1"><span>6.1 &nbsp; The 2×2 grid topology and neighbour structure</span><span class="lead"></span><span class="pg">22</span></a></li>
+    <li><a href="#fig6-2"><span>6.2 &nbsp; Per-approach lane design</span><span class="lead"></span><span class="pg">23</span></a></li>
+    <li><a href="#fig6-3"><span>6.3 &nbsp; The SUMO–TraCI–RLlib training architecture</span><span class="lead"></span><span class="pg">25</span></a></li>
+    <li><a href="#fig6-4"><span>6.4 &nbsp; MAPPO vs IPPO: the two design choices</span><span class="lead"></span><span class="pg">27</span></a></li>
+    <li><a href="#fig6-5"><span>6.5 &nbsp; The 5×5 grid network in SUMO</span><span class="lead"></span><span class="pg">30</span></a></li>
+    <li><a href="#fig7-1"><span>7.1 &nbsp; MAPPO training reward</span><span class="lead"></span><span class="pg">31</span></a></li>
+    <li><a href="#fig7-2"><span>7.2 &nbsp; KL divergence and explained variance</span><span class="lead"></span><span class="pg">32</span></a></li>
+    <li><a href="#fig7-3"><span>7.3 &nbsp; Policy entropy and training losses</span><span class="lead"></span><span class="pg">33</span></a></li>
+    <li><a href="#fig7-4"><span>7.4 &nbsp; Controllers at matched 3 s clearance</span><span class="lead"></span><span class="pg">34</span></a></li>
+    <li><a href="#fig7-5"><span>7.5 &nbsp; Three-way comparison (MAPPO / IPPO / paper-baseline)</span><span class="lead"></span><span class="pg">37</span></a></li>
+    <li><a href="#fig7-6"><span>7.6 &nbsp; Coordination value: MAPPO vs IPPO</span><span class="lead"></span><span class="pg">38</span></a></li>
+    <li><a href="#fig7-7"><span>7.7 &nbsp; Per-seed average waiting time</span><span class="lead"></span><span class="pg">39</span></a></li>
+  </ol>
+</section>
+
+<!-- ============================== LIST OF TABLES ============================== -->
+<section class="toc frontbreak" id="lot">
+  <h1>List of Tables</h1>
+  <ol style="list-style:none;padding-left:0">
+    <li><a href="#tab2-1"><span>2.1 &nbsp; Comparison of representative MARL algorithms</span><span class="lead"></span><span class="pg">8</span></a></li>
+    <li><a href="#tab4-1"><span>4.1 &nbsp; The four-phase action space</span><span class="lead"></span><span class="pg">15</span></a></li>
+    <li><a href="#tab6-1"><span>6.1 &nbsp; Shared training hyperparameters</span><span class="lead"></span><span class="pg">26</span></a></li>
+    <li><a href="#tab6-2"><span>6.2 &nbsp; The Yu et al. (2021) paper-baseline configuration</span><span class="lead"></span><span class="pg">28</span></a></li>
+    <li><a href="#tab7-1"><span>7.1 &nbsp; Average waiting time with and without clearance</span><span class="lead"></span><span class="pg">33</span></a></li>
+    <li><a href="#tab7-2"><span>7.2 &nbsp; MAPPO versus IPPO across all metrics</span><span class="lead"></span><span class="pg">36</span></a></li>
+    <li><a href="#tab7-3"><span>7.3 &nbsp; MAPPO versus the paper-baseline</span><span class="lead"></span><span class="pg">37</span></a></li>
+    <li><a href="#tab8-1"><span>8.1 &nbsp; Strengths and limitations of the project's MAPPO</span><span class="lead"></span><span class="pg">40</span></a></li>
+  </ol>
+</section>
+
+<!-- ====================================================================== -->
+<!-- CHAPTER 1 — INTRODUCTION                                               -->
+<!-- ====================================================================== -->
+<section class="chapter" id="ch1">
+  <h1><span class="chapter-num">Chapter 1</span>Introduction</h1>
+
+  <p class="lead-para">This chapter sets out the problem that motivates the dissertation, the
+  gaps in the existing literature that it speaks to, and the single, focused question that the
+  rest of the report works to answer.</p>
+
+  <h2>1.1 &nbsp; Problem Statement</h2>
+  <p>Multi-agent systems — settings in which several autonomous agents interact to pursue goals,
+  individually or collectively — underpin a growing slice of modern technology. Autonomous
+  vehicles share the same roads, fleets of distributed sensors coordinate to monitor an area,
+  and electricity grids balance supply across many independent producers. What sets these
+  problems apart from classical control is that there is no single decision maker at the centre
+  pulling every lever. Instead there are many decision makers, each acting on its own partial
+  view of the world, and the quality of the whole system emerges from how well — or how badly —
+  those local decisions fit together.</p>
+
+  <p>Reinforcement learning (RL) offers a principled way to learn such decisions from
+  experience rather than hand-coding them. An agent observes the state of its environment,
+  takes an action, receives a scalar reward, and gradually adjusts its behaviour to collect
+  more reward over time <a class="cref" href="#ref-1">[1]</a>. The appeal for control problems
+  is obvious: instead of a human engineer anticipating every situation, the agent discovers a
+  policy by trial and error. Over the last decade, deep reinforcement learning has carried this
+  idea from toy grid-worlds to Atari games, robotic manipulation, and beyond
+  <a class="cref" href="#ref-3">[3]</a>.</p>
+
+  <p>Extending RL from one agent to many — Multi-Agent Reinforcement Learning (MARL) — changes
+  the character of the problem in a way that is easy to underestimate. From the point of view
+  of any one agent, the other agents are simply part of the environment. But those "parts" are
+  themselves learning and changing, so the environment an agent faces today is not the
+  environment it will face tomorrow. A response that is optimal against the current behaviour of
+  the others can become a liability the moment they adapt. This <em>non-stationarity</em> quietly
+  breaks the mathematical assumptions that make single-agent RL stable and convergent, and it is
+  the root cause of most of the difficulty in MARL <a class="cref" href="#ref-15">[15]</a>.</p>
+
+  <p>Crucially, the <em>relationship</em> between the agents is not fixed. Sometimes cooperation
+  benefits everyone, and the interesting challenge is simply getting agents to discover the
+  coordinated behaviour. At other times genuine conflict is built into the problem: an agent can
+  exploit a shared resource for private gain while quietly pushing the cost onto the collective.
+  Understanding <em>when</em> cooperation emerges versus <em>when</em> exploitation dominates is
+  central to deploying autonomous agents responsibly, and it is the broad theme this project
+  sits within.</p>
+
+  <p>To study that theme without drowning in the complications of an open-ended environment,
+  this dissertation uses <em>traffic signal control</em> as a controlled, representative case.
+  Each intersection in a road network is treated as an agent: it observes the local traffic
+  state, chooses which signal phase to show, and is rewarded for keeping vehicles moving.
+  Traffic is an unusually clean testbed for the cooperation question because network effects
+  align the incentives almost perfectly — when one intersection causes gridlock, the congestion
+  backs up and eventually hurts that very intersection too. There is, in other words, nothing to
+  be gained by "defecting." Traffic therefore sits at the <em>pure-coordination</em> end of the
+  cooperation spectrum drawn in Figure 1.1, which makes it the ideal place to isolate one specific
+  question: how much
+  does an explicit coordination mechanism actually add when the incentives are already pulling
+  in the same direction?</p>
+
+  <p>A concrete picture helps. Imagine two intersections on a single arterial, one feeding directly
+  into the other. If the upstream signal releases a long platoon just as the downstream signal turns
+  red, that platoon slams into a growing queue, the queue spills back, and within a minute both
+  intersections are clogged — including the upstream one that caused the problem. If instead the two
+  signals are phased so the platoon meets a green downstream, traffic flows through both. No
+  intersection gains anything by being "selfish" here; over any reasonable horizon, the only way to
+  do well locally is to do well jointly. That is what it means for incentives to be aligned, and it
+  is why a controller can stumble into coordinated behaviour even without being explicitly told to
+  coordinate. The whole purpose of this dissertation is to measure how much an algorithm that
+  <em>is</em> explicitly told to coordinate gains over one that is not, in exactly this kind of
+  aligned setting.</p>
+
+  <figure id="fig1-1" class="svg-fig">
+    <svg viewBox="0 0 720 200" role="img" aria-label="The coordination to social-dilemma spectrum">
+      <defs>
+        <linearGradient id="spec" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#1f4e79"/>
+          <stop offset="1" stop-color="#b8341b"/>
+        </linearGradient>
+        <marker id="ah" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto">
+          <path d="M0 0 L7 3 L0 6 Z" fill="#444"/>
+        </marker>
+      </defs>
+      <rect x="60" y="86" width="600" height="14" rx="7" fill="url(#spec)"/>
+      <polygon points="60,93 48,84 48,102" fill="#1f4e79"/>
+      <polygon points="660,93 672,84 672,102" fill="#b8341b"/>
+      <text x="60" y="70" text-anchor="middle" font-family="Helvetica" font-size="15" font-weight="bold" fill="#1f4e79">PURE COORDINATION</text>
+      <text x="660" y="70" text-anchor="middle" font-family="Helvetica" font-size="15" font-weight="bold" fill="#b8341b">SOCIAL DILEMMA</text>
+      <!-- left card -->
+      <rect x="40" y="118" width="220" height="64" rx="6" fill="#eef3f8" stroke="#1f4e79"/>
+      <text x="150" y="138" text-anchor="middle" font-family="Helvetica" font-size="13" font-weight="bold" fill="#1f4e79">Traffic signal control</text>
+      <text x="150" y="156" text-anchor="middle" font-family="Helvetica" font-size="11" fill="#333">Cooperation benefits all;</text>
+      <text x="150" y="171" text-anchor="middle" font-family="Helvetica" font-size="11" fill="#333">no incentive to defect</text>
+      <!-- right card -->
+      <rect x="460" y="118" width="220" height="64" rx="6" fill="#f6ece9" stroke="#b8341b"/>
+      <text x="570" y="138" text-anchor="middle" font-family="Helvetica" font-size="13" font-weight="bold" fill="#b8341b">Resource commons</text>
+      <text x="570" y="156" text-anchor="middle" font-family="Helvetica" font-size="11" fill="#333">Private gain from exploitation;</text>
+      <text x="570" y="171" text-anchor="middle" font-family="Helvetica" font-size="11" fill="#333">collective harm if all defect</text>
+      <text x="360" y="150" text-anchor="middle" font-family="Helvetica" font-size="11" fill="#888" font-style="italic">this study</text>
+      <line x1="360" y1="132" x2="360" y2="100" stroke="#888" stroke-width="1" marker-end="url(#ah)"/>
+    </svg>
+    <figcaption><b>Figure 1.1.</b> The coordination–social-dilemma spectrum. Traffic signal
+    control occupies the pure-coordination pole, where incentives are aligned by the structure
+    of the problem; sequential social dilemmas occupy the opposite pole, where individual and
+    collective interests conflict. This dissertation works at the left-hand pole and uses it to
+    establish a clean reference point for the value of coordination.</figcaption>
+  </figure>
+
+  <h2>1.2 &nbsp; Research Gap</h2>
+  <p>Despite a decade of rapid progress, several questions in MARL remain underexplored, and
+  four are worth naming because they frame what follows.</p>
+
+  <ul>
+    <li><strong>The middle of the spectrum.</strong> Most published work targets either purely
+    cooperative settings or purely competitive games such as chess, Go, and poker. The continuum
+    between those extremes — where coordination and competition coexist and the balance between
+    them can tip — receives far less systematic attention.</li>
+    <li><strong>Reward structure.</strong> It is well known that reward shaping matters, but
+    careful, controlled comparisons of <em>individual</em> versus <em>shared</em> reward signals,
+    holding everything else constant, are surprisingly rare. Without that control it is hard to
+    attribute a behavioural difference to the reward rather than to some incidental change.</li>
+    <li><strong>Fairness.</strong> Algorithms are usually judged on total system performance,
+    with little attention to how the benefit is distributed across the individual agents. A
+    controller that is excellent on average may achieve this by treating some agents far worse
+    than others.</li>
+    <li><strong>Scalability of coordination.</strong> How the <em>value</em> of a coordination
+    mechanism changes as a system grows — from a handful of agents to a large network — has not
+    been characterized cleanly. It is often assumed that more sophisticated coordination is
+    always better, but whether that holds at every scale is an empirical question.</li>
+  </ul>
+
+  <p>This dissertation engages most directly with the first and fourth of these gaps. It asks a
+  deceptively simple question on a controlled traffic benchmark: <em>does an explicitly
+  cooperative algorithm — MAPPO, with its centralized critic and coordination-aware reward —
+  actually outperform a set of independent learners (IPPO) when the two are matched in every
+  other respect?</em> The answer turns out to be more interesting than a plain "yes," and the
+  reason behind the answer, rather than the answer alone, forms the spine of the report. By
+  pinning down the value of coordination at the smallest meaningful network size, the work also
+  establishes the zero-point of a curve that larger networks and genuine social dilemmas can
+  later be measured against.</p>
+</section>
+
+<!-- ====================================================================== -->
+<!-- CHAPTER 2 — BACKGROUND AND LITERATURE REVIEW                           -->
+<!-- ====================================================================== -->
+<section class="chapter" id="ch2">
+  <h1><span class="chapter-num">Chapter 2</span>Background and Literature Review</h1>
+
+  <p class="lead-para">This chapter builds up the ideas the dissertation rests on, moving from
+  single-agent reinforcement learning through deep RL and policy-gradient methods to the
+  multi-agent case, and finally to the two literatures the project sits between: social dilemmas
+  and MARL for traffic signal control.</p>
+
+  <h2>2.1 &nbsp; Reinforcement Learning</h2>
+  <p>Reinforcement learning gives a mathematical framework for an agent that learns optimal
+  behaviour purely through interaction. Its foundation is the Markov Decision Process (MDP),
+  which has four ingredients: a set of <em>states</em> describing the environment, a set of
+  <em>actions</em> the agent may take, <em>transition dynamics</em> mapping a state–action pair
+  to a distribution over next states, and a <em>reward</em> signal scoring each transition. The
+  agent seeks a <em>policy</em> — a mapping from states to actions — that maximizes the expected
+  cumulative discounted return, where a discount factor <span class="mono">&gamma;</span> trades
+  off immediate against future reward <a class="cref" href="#ref-1">[1]</a>.</p>
+
+  <p>The central object that makes this tractable is the value function, and the relationship it
+  satisfies is the Bellman equation: the value of a state equals the immediate reward plus the
+  discounted value of its successor. This recursive structure is what lets algorithms
+  <em>bootstrap</em>, estimating one value from another rather than waiting for the full return
+  to play out. Classical methods such as Q-learning exploit exactly this, iteratively refining
+  an estimate of the optimal action-value function after each interaction and, in doing so,
+  tackling the <em>credit-assignment problem</em> of deciding which past actions deserve credit
+  for a later outcome <a class="cref" href="#ref-2">[2]</a>. The interaction loop that all of
+  this is built on is shown in Figure 2.1.</p>
+
+  <figure id="fig2-1" class="fig-narrow">
+    <img src="assets/img/Classical-RL-Loop-12.png" alt="The agent–environment interaction loop of reinforcement learning">
+    <figcaption><b>Figure 2.1.</b> The reinforcement-learning interaction loop. At each step the
+    agent observes a state, selects an action under its policy, and receives a reward and a next
+    state from the environment; learning adjusts the policy so that long-run reward increases.</figcaption>
+  </figure>
+
+  <h2>2.2 &nbsp; Deep Reinforcement Learning</h2>
+  <p>Tabular methods keep a separate value for every state–action pair, which is fine for small
+  problems but hopeless once the state space is large or continuous — a traffic network with
+  real-valued queue lengths has effectively infinite states. Deep Reinforcement Learning (DRL)
+  removes this wall by replacing the table with a neural-network function approximator that
+  generalizes across similar states. The Deep Q-Network (DQN) was the landmark demonstration,
+  learning to play Atari games directly from pixels with two stabilizing tricks:
+  <em>experience replay</em>, which samples past transitions out of order to break the temporal
+  correlations that otherwise destabilize training, and a <em>target network</em>, a slowly
+  updated copy of the value network that keeps the bootstrap target from chasing its own tail
+  <a class="cref" href="#ref-3">[3]</a>.</p>
+
+  <p>DQN is <em>value-based</em>: it learns a value function and acts greedily with respect to
+  it. A complementary family, the <em>policy-gradient</em> methods, skips the intermediate value
+  function and optimizes the policy directly by ascending the gradient of expected return. The
+  REINFORCE algorithm established the basic recipe <a class="cref" href="#ref-5">[5]</a>, and
+  <em>actor–critic</em> methods refined it by pairing a policy (the actor) with a learned value
+  function (the critic) that reduces the variance of the gradient estimate
+  <a class="cref" href="#ref-8">[8]</a>. Asynchronous variants such as A3C scaled this idea
+  across many parallel workers <a class="cref" href="#ref-4">[4]</a>.</p>
+
+  <p>Running underneath all of these methods is the exploration–exploitation trade-off: an agent
+  must keep trying actions whose value it is unsure of in order to discover good behaviour, yet it
+  must also exploit what it already knows in order to perform well. Value-based methods usually
+  handle this with explicit randomness, such as occasionally acting at random; policy-gradient
+  methods bake it into the policy itself, which stays stochastic and is gently encouraged to remain
+  so by an entropy bonus in the objective. This entropy term matters in practice — too little and
+  the policy collapses prematurely onto a mediocre habit, too much and it never commits to anything.
+  It reappears later as one of the diagnostics tracked during training, where a gradual rather than
+  sudden decay of entropy is a sign of healthy learning.</p>
+
+  <p>The policy-gradient method that has become the modern default is Proximal Policy
+  Optimization (PPO) <a class="cref" href="#ref-6">[6]</a>. PPO's key idea is to limit how far
+  the policy may move in a single update through a <em>clipped surrogate objective</em>: if a
+  proposed update would change the probability of an action by more than a set fraction, the
+  objective is clipped so that there is no further incentive to push past that band. This single
+  trick prevents the destructive, over-large updates that plagued earlier policy-gradient
+  methods, while keeping the algorithm simple and reasonably sample-efficient. The mechanism is
+  sketched in Figure 2.2. PPO is almost always paired with Generalized Advantage Estimation
+  (GAE) <a class="cref" href="#ref-7">[7]</a>, which estimates how much better an action was than
+  average by exponentially weighting temporal-difference errors over many horizons, trading off
+  bias against variance through a single parameter <span class="mono">&lambda;</span>. Together,
+  PPO and GAE are the workhorse behind nearly every result in this dissertation.</p>
+
+  <figure id="fig2-2" class="fig-narrow">
+    <img src="assets/img/PPO-diagram.png" alt="PPO clipped surrogate objective">
+    <figcaption><b>Figure 2.2.</b> PPO's clipped surrogate objective. The probability ratio
+    between the new and old policy is clipped to a band around one, so the optimizer gains
+    nothing by moving the policy too far in a single update. This is the source of PPO's
+    stability and a recurring theme when comparing it against less constrained methods.</figcaption>
+  </figure>
+
+  <h2>2.3 &nbsp; Multi-Agent Reinforcement Learning</h2>
+
+  <h3>2.3.1 &nbsp; Fundamental Challenges</h3>
+  <p>Putting several learning agents in the same environment introduces difficulties that simply
+  do not exist in the single-agent case. <strong>Non-stationarity</strong> is the deepest of
+  them: each agent treats the others as part of its environment, but those components keep
+  changing as the others learn, which violates the stationary-transition assumption that
+  underwrites single-agent convergence guarantees. <strong>Credit assignment</strong> becomes
+  much harder when a team shares one reward, because it is no longer obvious which agent's action
+  was responsible for a good or bad outcome. And the joint action space grows
+  <em>exponentially</em>: four agents each choosing among four actions already produce
+  <span class="mono">4<sup>4</sup> = 256</span> joint actions, so any method that reasons over the
+  joint space directly is doomed to scale poorly <a class="cref" href="#ref-15">[15]</a>. The
+  practical response is to decompose the global problem into local subproblems that each agent
+  can solve from its own observation, while finding some way to keep the agents pulling in the
+  same direction <a class="cref" href="#ref-16">[16]</a>.</p>
+
+  <p>It is worth being concrete about why non-stationarity is so corrosive. In single-agent RL the
+  convergence arguments for value iteration and policy gradients all lean on the environment being
+  a fixed MDP, so that a value learned today remains meaningful tomorrow. The instant a second
+  learning agent enters, that fixed MDP dissolves: the effective transition and reward functions
+  that any one agent experiences now depend on the others' current policies, which are themselves
+  moving. From one agent's perspective the ground is shifting under its feet, and an experience
+  buffer collected against yesterday's opponents can actively mislead. This is also why naively
+  reusing single-agent tricks — large replay buffers, off-policy updates — can backfire in the
+  multi-agent setting, and why on-policy methods such as PPO, which always learn from fresh data
+  generated by the current joint policy, are a popular foundation for MARL despite their lower
+  sample efficiency. Recent surveys document a wide menu of responses to these difficulties, from
+  opponent modelling to centralized critics to communication channels, but no single method
+  dominates across every cooperative, competitive, and mixed setting
+  <a class="cref" href="#ref-17">[17]</a>.</p>
+
+  <h3>2.3.2 &nbsp; Algorithmic Approaches</h3>
+  <p><strong>Independent learning</strong> is the simplest answer of all. Independent Q-Learning
+  (IQL) lets each agent run its own single-agent algorithm and ignore the multi-agent structure
+  entirely, treating the others as part of the environment <a class="cref" href="#ref-9">[9]</a>.
+  It is simple, it scales linearly with the number of agents, and it works surprisingly often in
+  practice when the agents do not interfere too strongly — but it has no convergence guarantee
+  and can struggle badly with cooperative credit assignment. Its policy-gradient analogue,
+  <strong>Independent PPO (IPPO)</strong>, applies PPO independently to each agent and is the
+  "fully independent learners" baseline used throughout this dissertation.</p>
+
+  <p><strong>Value-decomposition</strong> methods attack credit assignment head-on by learning
+  how individual agents' values combine into a team value. Value-Decomposition Networks (VDN)
+  take the simplest route, summing per-agent values into a team value
+  <a class="cref" href="#ref-12">[12]</a>. <strong>QMIX</strong> generalizes this by learning a
+  <em>monotonic</em> mixing of individual values, which guarantees that improving any one agent's
+  value improves the team's, while still allowing fully decentralized execution
+  <a class="cref" href="#ref-13">[13]</a>. The monotonicity constraint buys decentralizability at
+  the cost of expressiveness, and these methods are confined to cooperative settings.
+  <strong>COMA</strong> took a different angle, using a centralized critic and a
+  counterfactual baseline to isolate each agent's contribution to the shared reward
+  <a class="cref" href="#ref-11">[11]</a>.</p>
+
+  <p>What unifies the strongest of these methods is the <strong>Centralized Training with
+  Decentralized Execution (CTDE)</strong> paradigm, illustrated in Figure 2.3. The insight is
+  that the two phases of an agent's life have different information budgets. During
+  <em>training</em> — done offline, in simulation — it is perfectly acceptable to use privileged
+  global information, such as every agent's observation and action, to stabilize learning and
+  tame non-stationarity. During <em>execution</em> — done online, in deployment — each agent must
+  act on its local observation alone, with no global oracle and no inter-agent communication.
+  CTDE keeps the best of both: a powerful, globally informed training signal and a lightweight,
+  scalable deployed policy. A useful analogy is a sports team. In practice, a coach watches every
+  player at once and teaches them how to coordinate; in the match, the players act independently
+  on what each can see, applying what the coach taught them.</p>
+
+  <figure id="fig2-3" class="svg-fig">
+    <svg viewBox="0 0 720 300" role="img" aria-label="Centralized training with decentralized execution">
+      <!-- Training panel -->
+      <rect x="20" y="20" width="320" height="260" rx="8" fill="#eef3f8" stroke="#1f4e79" stroke-width="1.5"/>
+      <text x="180" y="44" text-anchor="middle" font-family="Helvetica" font-size="14" font-weight="bold" fill="#1f4e79">TRAINING (offline)</text>
+      <!-- centralized critic -->
+      <rect x="100" y="62" width="160" height="40" rx="6" fill="#1f4e79"/>
+      <text x="180" y="87" text-anchor="middle" font-family="Helvetica" font-size="12" fill="#fff" font-weight="bold">Centralized critic</text>
+      <text x="180" y="120" text-anchor="middle" font-family="Helvetica" font-size="10.5" fill="#555">sees the global state of all agents</text>
+      <!-- agents -->
+      <g font-family="Helvetica" font-size="11" fill="#fff">
+        <rect x="44" y="150" width="64" height="34" rx="5" fill="#b8341b"/><text x="76" y="172" text-anchor="middle">Actor 1</text>
+        <rect x="124" y="150" width="64" height="34" rx="5" fill="#b8341b"/><text x="156" y="172" text-anchor="middle">Actor 2</text>
+        <rect x="204" y="150" width="64" height="34" rx="5" fill="#b8341b"/><text x="236" y="172" text-anchor="middle">Actor 3</text>
+      </g>
+      <g stroke="#1f4e79" stroke-width="1.2" fill="none">
+        <line x1="76" y1="150" x2="140" y2="102"/>
+        <line x1="156" y1="150" x2="170" y2="102"/>
+        <line x1="236" y1="150" x2="210" y2="102"/>
+      </g>
+      <text x="180" y="210" text-anchor="middle" font-family="Helvetica" font-size="10.5" fill="#555">critic gradients shape every shared actor</text>
+      <text x="180" y="232" text-anchor="middle" font-family="Helvetica" font-size="10.5" fill="#555" font-style="italic">"the coach watches all players"</text>
+      <!-- Execution panel -->
+      <rect x="380" y="20" width="320" height="260" rx="8" fill="#f6ece9" stroke="#b8341b" stroke-width="1.5"/>
+      <text x="540" y="44" text-anchor="middle" font-family="Helvetica" font-size="14" font-weight="bold" fill="#b8341b">EXECUTION (online)</text>
+      <g font-family="Helvetica" font-size="11" fill="#fff">
+        <rect x="404" y="90" width="84" height="34" rx="5" fill="#b8341b"/><text x="446" y="112" text-anchor="middle">Actor 1</text>
+        <rect x="498" y="90" width="84" height="34" rx="5" fill="#b8341b"/><text x="540" y="112" text-anchor="middle">Actor 2</text>
+        <rect x="592" y="90" width="84" height="34" rx="5" fill="#b8341b"/><text x="634" y="112" text-anchor="middle">Actor 3</text>
+      </g>
+      <g font-family="Helvetica" font-size="9.5" fill="#555" text-anchor="middle">
+        <text x="446" y="146">local obs</text>
+        <text x="540" y="146">local obs</text>
+        <text x="634" y="146">local obs</text>
+      </g>
+      <text x="540" y="210" text-anchor="middle" font-family="Helvetica" font-size="10.5" fill="#555">no critic, no communication — each acts alone</text>
+      <text x="540" y="232" text-anchor="middle" font-family="Helvetica" font-size="10.5" fill="#555" font-style="italic">"in the match, players act independently"</text>
+    </svg>
+    <figcaption><b>Figure 2.3.</b> Centralized training with decentralized execution. A globally
+    informed critic stabilizes learning during training, but the deployed actors act only on
+    their own local observations. MAPPO is the instantiation of this idea used in this work.</figcaption>
+  </figure>
+
+  <p><strong>MADDPG</strong> pioneered CTDE for actor–critic methods, giving each agent a
+  centralized critic that sees all observations and actions during training and a decentralized
+  actor at execution <a class="cref" href="#ref-10">[10]</a>. <strong>MAPPO</strong> marries that
+  centralized-critic architecture to PPO's robust optimization: a shared centralized value
+  function consumes all agents' observations during training, each agent keeps its own
+  decentralized policy, PPO clipping prevents destructive updates, and GAE stabilizes the
+  advantages <a class="cref" href="#ref-14">[14]</a>. The original MAPPO study reported that this
+  conceptually simple combination matches or beats more specialized cooperative algorithms across
+  a range of standard benchmarks, which is precisely why it is the natural "sophisticated
+  cooperative method" to put to the test in this project. Table 2.1 summarizes how these
+  algorithms relate.</p>
+
+  <div class="tbl-wrap" id="tab2-1">
+    <table>
+      <caption><b>Table 2.1.</b> Comparison of representative MARL algorithms by training scheme,
+      execution scheme, and key characteristics.</caption>
+      <thead>
+        <tr><th>Algorithm</th><th>Training</th><th>Execution</th><th>Key characteristics</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>IQL / IPPO</td><td>Independent</td><td>Decentralized</td><td>Simple and scalable; treats others as environment; no guarantee under non-stationarity</td></tr>
+        <tr><td>VDN / QMIX</td><td>Centralized mixer</td><td>Decentralized</td><td>Monotonic value factorisation; cooperative settings only</td></tr>
+        <tr><td>COMA</td><td>Centralized critic</td><td>Decentralized</td><td>Counterfactual baseline for credit assignment</td></tr>
+        <tr><td>MADDPG</td><td>Centralized critic</td><td>Decentralized</td><td>Actor–critic CTDE; continuous actions; less stable, limited scalability</td></tr>
+        <tr class="hi"><td>MAPPO</td><td>Centralized critic</td><td>Decentralized</td><td>PPO-based; stable updates; strong coordination and scalability</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>2.4 &nbsp; Social Dilemmas in Multi-Agent Systems</h2>
+  <p>Social dilemmas describe situations in which individually rational behaviour produces a
+  collectively poor outcome — the exact opposite of the aligned-incentive world of traffic. The
+  <em>Prisoner's Dilemma</em> is the canonical example: two agents both do better under mutual
+  cooperation, yet each maximizes its own payoff by defecting regardless of what the other does,
+  so rational self-interest drives both to a worse outcome than they could have reached together.
+  The <em>Tragedy of the Commons</em> scales this intuition up to a shared resource: every user
+  benefits privately from over-using it while the cost is spread across everyone, creating a
+  steady pressure toward over-exploitation that eventually destroys the resource for all
+  <a class="cref" href="#ref-19">[19]</a>. <em>Sequential social dilemmas</em> embed these
+  incentives in grid-world environments that unfold over many timesteps, so that the temptation
+  to defect is not a one-shot choice but a behaviour the agents must learn to manage over time
+  <a class="cref" href="#ref-18">[18]</a>. The "Harvest" commons, in which agents collect slowly
+  regrowing apples and over-harvesting permanently depletes a region, is a standard example.
+  Social dilemmas sit at the opposite end of the spectrum from traffic, and this project treats
+  them as the natural next environment rather than part of the current scope; they return in the
+  future-work discussion of Chapter&nbsp;9. The Harvest environment is shown in Figure 2.4, and it
+  is instructive to contrast it with traffic: where a traffic agent that floods its own approach
+  eventually chokes itself, a Harvest agent that strips a patch of apples bare can walk away
+  unharmed while its neighbours inherit the depleted ground. The cost of selfishness is paid by
+  someone else. That single structural difference — whether defection is self-punishing or not —
+  is the axis this project's traffic study sits at one end of, and it is what makes the social
+  dilemma the natural complement to everything that follows.</p>
+
+  <figure id="fig2-4" class="fig-narrow">
+    <img src="assets/img/Harvest Env.png" alt="The Harvest sequential social dilemma">
+    <figcaption><b>Figure 2.4.</b> The Harvest sequential social dilemma, a standard exploitation-end
+    benchmark. Agents collect apples that regrow only while nearby apples remain, so over-harvesting
+    a region destroys it for everyone. Unlike traffic, defection here is not self-punishing, which
+    is exactly why reward structure becomes decisive. Harvest is identified as future work in
+    Chapter&nbsp;9.</figcaption>
+  </figure>
+
+  <h2>2.5 &nbsp; MARL for Traffic Signal Control</h2>
+  <p>Traffic signal control maps onto MARL almost without forcing. Each traffic light is an agent
+  that observes its local traffic state, selects a signal phase, and is rewarded for traffic
+  efficiency; because intersections are coupled through the vehicles that flow between them, an
+  agent that optimizes only its own corner can still create problems elsewhere in the network.
+  Traditional fixed-time controllers run a pre-set cycle and actuated controllers react to local
+  detectors, but both need manual tuning and cope poorly with the non-recurring congestion that
+  real networks throw at them. RL promises adaptive controllers that learn good timing from
+  experience instead. Early single-intersection deep-RL controllers already improved on classical
+  methods <a class="cref" href="#ref-23">[23]</a>, but, acting in isolation, they missed the
+  network effects in which a locally good decision sows a downstream problem
+  <a class="cref" href="#ref-24">[24]</a>.</p>
+
+  <p>The response in the literature was to make agents aware of their neighbours.
+  <strong>CoLight</strong> gave each agent information about adjacent intersections and shared
+  network parameters across agents, inducing genuinely coordinated behaviour at city scale
+  despite decentralized execution <a class="cref" href="#ref-20">[20]</a>. A particularly
+  effective and theoretically grounded family is <em>pressure-based</em> control, which steers
+  toward the phase that best relieves the imbalance between incoming and outgoing vehicles per
+  movement and connects directly to max-pressure control from transportation theory
+  <a class="cref" href="#ref-21">[21]</a>. A large-scale study by Chu&nbsp;et&nbsp;al. is
+  especially relevant here: it found that sharing neighbour information significantly improves
+  network performance, <em>but only with careful reward design</em> — naive purely individual
+  rewards, where each intersection minimizes only its own delay, can actively harm overall
+  throughput, while well-designed shared rewards help but demand careful algorithm design to
+  scale <a class="cref" href="#ref-22">[22]</a>.</p>
+
+  <p>One observation from this literature motivates the entire dissertation. From a system
+  designer's standpoint, traffic is <em>fundamentally cooperative</em>: network effects align the
+  incentives, because gridlock hurts the very agent that caused it. That makes traffic an
+  excellent, controlled environment for asking a sharper question than "can RL control traffic?"
+  — namely, whether an explicit coordination mechanism is actually <em>necessary</em> at a given
+  scale, or whether independent learners equipped with the same local information can recover the
+  same coordinated behaviour on their own. That is the question Chapter&nbsp;3 turns into concrete
+  objectives.</p>
+
+  <h2>2.6 &nbsp; Positioning of This Work</h2>
+  <p>It helps to say plainly where this dissertation sits in the landscape just sketched. It is
+  not a proposal for a new algorithm; MAPPO and IPPO are both established methods. Nor is it a
+  benchmark-chasing exercise aimed at squeezing out a new best score on a standard task. Its
+  contribution is <em>comparative and diagnostic</em>: it takes a well-understood cooperative
+  algorithm and a well-understood independent-learning algorithm, makes them differ in the
+  smallest possible way, and measures what that difference is actually worth on a problem where the
+  answer is not obvious in advance. The traffic literature reviewed above tends to report that
+  coordination helps, but it usually does so on large city-scale networks and with methods that
+  bundle several innovations together, which makes it hard to attribute the gain to any one
+  ingredient <a class="cref" href="#ref-20">[20]</a><a class="cref" href="#ref-22">[22]</a>. By
+  shrinking the network to its smallest interesting size and isolating exactly two design choices,
+  this work asks a question that the large-scale studies cannot cleanly answer: at what point does
+  the coordination machinery start to earn its keep? The value of the resulting answer — even when,
+  as here, it is a negative one — is that it fixes one end of a curve the field usually only
+  observes from the far end.</p>
+</section>
+
+<!-- ====================================================================== -->
+<!-- CHAPTER 3 — OBJECTIVES                                                 -->
+<!-- ====================================================================== -->
+<section class="chapter" id="ch3">
+  <h1><span class="chapter-num">Chapter 3</span>Objectives</h1>
+
+  <p class="lead-para">The overarching aim of this research is to study emergent social
+  behaviour, cooperation, and the value of coordination in multi-agent reinforcement learning,
+  using traffic signal control as a controlled, inherently cooperative case study. That aim
+  resolves into four concrete, realized objectives.</p>
+
+  <ol>
+    <li><strong>Establish a strong cooperative baseline.</strong> Implement and train a MAPPO
+    traffic-signal controller on a 2&times;2 grid, demonstrate that it converges stably, and then
+    validate it against the two standard heuristic controllers — fixed-time and max-pressure —
+    under a <em>fair</em> evaluation protocol in which every controller pays the same real-world
+    operating cost. This objective is what makes the later comparisons trustworthy: a weak or
+    badly evaluated baseline would render every downstream conclusion meaningless.</li>
+
+    <li><strong>Confirm implementation fidelity.</strong> Compare the project's MAPPO
+    configuration against the canonical published recipe of Yu&nbsp;et&nbsp;al.
+    <a class="cref" href="#ref-14">[14]</a>, to establish that the cooperative agent is a
+    faithful, competitive implementation of the method and not a weakened strawman built to lose.
+    This is the "external comparison" the report devotes a dedicated section to.</li>
+
+    <li><strong>Quantify the value of coordination.</strong> Implement Independent PPO (IPPO) as a
+    fully decentralized comparator that differs from MAPPO in exactly its two defining design
+    choices — a decentralized critic and a purely local reward — and measure the
+    <em>coordination value</em>, defined as the performance difference
+    <span class="mono">MAPPO&nbsp;&minus;&nbsp;IPPO</span>. This is the "internal comparison" and
+    the analytical heart of the dissertation.</li>
+
+    <li><strong>Characterize and interpret the result.</strong> Analyze <em>why</em> the measured
+    coordination value takes the value it does at this network scale, rather than merely reporting
+    a number, and connect the finding to the broader question of how coordination mechanisms
+    should be expected to scale with network complexity.</li>
+  </ol>
+
+  <p>Two further ambitions — characterizing the efficiency–equity trade-off across agents, and
+  contrasting pure coordination against a genuine social dilemma — frame the future work set out
+  in Chapter&nbsp;9. There, scaling the network up to a 5&times;5 grid and introducing a
+  social-dilemma environment are identified as the natural next steps that the project's compute
+  budget placed beyond the scope of this submission. As Chapter&nbsp;6 documents, the 5&times;5
+  network was in fact constructed and a training run attempted, which gives the future-work
+  discussion a concrete, evidenced starting point rather than a purely speculative one.</p>
+</section>
+
+<!-- ====================================================================== -->
+<!-- CHAPTER 4 — DETAILED TASKS                                             -->
+<!-- ====================================================================== -->
+<section class="chapter" id="ch4">
+  <h1><span class="chapter-num">Chapter 4</span>Detailed Tasks</h1>
+
+  <p class="lead-para">This chapter breaks the project into the concrete engineering tasks that
+  were carried out: the literature foundation, the design of the agent's observation, action and
+  reward, the neural-network models, and the experimental pipeline that turns all of it into
+  measured results. It is deliberately design-focused; the system that ties these pieces together
+  is described in Chapter&nbsp;6, and the numbers they produce appear in Chapter&nbsp;7.</p>
+
+  <h2>4.1 &nbsp; Task 1 — Literature and Theoretical Foundation</h2>
+  <p>The first task was to survey the MARL algorithms most relevant to a cooperative control
+  problem — chiefly QMIX, MADDPG and MAPPO — alongside the social-dilemma literature and the body
+  of work on RL for traffic signal control, and to settle on the CTDE paradigm as the right frame
+  for the project. An early implementation actually started from QMIX, but as a monotonic
+  value-decomposition method it handled the interactions between intersections awkwardly. MAPPO
+  was adopted instead because its centralized critic supplies stable gradients while its
+  decentralized actors let each agent act on local observations alone — the combination the rest
+  of the project is built on. This grounding is what Chapter&nbsp;2 reports in full.</p>
+
+  <p>The choice of MAPPO over the value-decomposition alternatives is worth a sentence of
+  justification, because it was a deliberate decision rather than a default. QMIX and its relatives
+  factor a team value into per-agent pieces under a monotonicity constraint, which is elegant but
+  bakes in an assumption — that each agent's contribution to the team value is monotone in its own
+  local value — that is awkward to defend in a traffic network where one intersection's best move
+  can depend sharply on a neighbour's state. MAPPO sidesteps factorisation entirely: it lets a
+  single centralized critic learn the joint value directly from the global state and uses that to
+  shape decentralized actors. Combined with PPO's well-known training stability, this made MAPPO
+  both the stronger candidate for the cooperative end of the comparison and the cleaner one to
+  contrast against an independent learner, since stripping the centralized critic and the
+  neighbour reward yields IPPO without changing anything else.</p>
+
+  <h2>4.2 &nbsp; Task 2 — Agent Design: Observation, Action and Reward</h2>
+
+  <h3>4.2.1 &nbsp; Observation-vector design</h3>
+  <p>Each agent observes a 70-dimensional vector, designed so that everything an intersection
+  needs to act well is present in a fixed-size input. Of the 70 numbers, 28 describe the agent's
+  own state and 42 summarize its two neighbours, as broken down in Figure 4.1. The 28 local
+  features are: per-movement queue lengths (four edges &times; three movements = 12),
+  a one-hot encoding of the current signal direction (2), the elapsed time in the current phase
+  normalized by its maximum (1), movement pressures defined as incoming minus outgoing vehicle
+  counts (6), the derivatives of those pressures, capturing whether congestion is building or
+  easing (6), and a binary min-green flag (1). The 42 neighbour features carry, for each of the
+  two adjacent intersections, that neighbour's shared queues, signal direction, combined
+  pressures, and the directional incoming/outgoing metrics across the shared road — all spatially
+  discounted with <span class="mono">&gamma;<sub>s</sub>&nbsp;=&nbsp;0.9</span> so that nearer
+  intersections count for more.</p>
+
+  <p>The inclusion of the neighbour block and the pressure derivatives is a considered choice rather
+  than a kitchen-sink one. The pressure derivatives let an agent see not just how congested a
+  movement is but whether the congestion is building or clearing, which is what makes anticipatory
+  rather than purely reactive timing possible. The neighbour features are what give an
+  <em>independent</em> learner a fighting chance of behaving coordinately: even without a centralized
+  critic, an IPPO agent can read a neighbour's queues and phase directly from its own observation and
+  respond to them. This is a subtle but important point for the comparison, because it means the gap
+  between MAPPO and IPPO is genuinely about the centralized critic and the neighbour <em>reward</em>,
+  not about whether the agent can perceive its neighbours at all — both can. The spatial discount
+  simply encodes the physical intuition that a queue one intersection away matters more than one two
+  intersections away, because traffic from the nearer one arrives sooner.</p>
+
+  <figure id="fig4-1" class="svg-fig">
+    <svg viewBox="0 0 720 230" role="img" aria-label="Breakdown of the 70-dimensional observation vector">
+      <text x="20" y="28" font-family="Helvetica" font-size="13" font-weight="bold" fill="#1f4e79">Local features — 28 dimensions</text>
+      <!-- local bar -->
+      <g font-family="Helvetica" font-size="9.5" fill="#fff" text-anchor="middle">
+        <rect x="20" y="38" width="150" height="34" fill="#1f4e79"/><text x="95" y="59">Queues (12)</text>
+        <rect x="172" y="38" width="40" height="34" fill="#2e6aa0"/><text x="192" y="59">Dir (2)</text>
+        <rect x="214" y="38" width="34" height="34" fill="#3a7fbf"/><text x="231" y="56">t (1)</text>
+        <rect x="250" y="38" width="86" height="34" fill="#2e6aa0"/><text x="293" y="59">Pressure (6)</text>
+        <rect x="338" y="38" width="86" height="34" fill="#3a7fbf"/><text x="381" y="56">d/dt (6)</text>
+        <rect x="426" y="38" width="34" height="34" fill="#1f4e79"/><text x="443" y="56">mg(1)</text>
+      </g>
+      <text x="20" y="108" font-family="Helvetica" font-size="13" font-weight="bold" fill="#b8341b">Neighbour features — 42 dimensions (21 per neighbour &times; 2)</text>
+      <g font-family="Helvetica" font-size="9.5" fill="#fff" text-anchor="middle">
+        <rect x="20" y="118" width="92" height="34" fill="#b8341b"/><text x="66" y="139">Queues (3)</text>
+        <rect x="114" y="118" width="48" height="34" fill="#c9543f"/><text x="138" y="139">Dir (2)</text>
+        <rect x="164" y="118" width="92" height="34" fill="#b8341b"/><text x="210" y="139">Pressure (3)</text>
+        <rect x="258" y="118" width="40" height="34" fill="#c9543f"/><text x="278" y="136">tot(1)</text>
+        <rect x="300" y="118" width="118" height="34" fill="#b8341b"/><text x="359" y="139">Outgoing (6)</text>
+        <rect x="420" y="118" width="118" height="34" fill="#c9543f"/><text x="479" y="139">Ingoing (6)</text>
+        <rect x="540" y="118" width="60" height="34" fill="#8f2616"/><text x="570" y="136">&times;2</text>
+      </g>
+      <text x="20" y="186" font-family="Helvetica" font-size="11" fill="#555">Total observation per agent = 28 + 42 = <tspan font-weight="bold" fill="#1f4e79">70 dimensions</tspan>.</text>
+      <text x="20" y="206" font-family="Helvetica" font-size="11" fill="#555">Centralized critic input = 4 agents &times; 70 = <tspan font-weight="bold" fill="#b8341b">280 dimensions</tspan> (global state).</text>
+    </svg>
+    <figcaption><b>Figure 4.1.</b> Composition of the 70-dimensional observation vector: 28 local
+    features describing the agent's own intersection and 42 features summarizing its two
+    spatially-discounted neighbours. The four agents' observations concatenate into the
+    280-dimensional global state seen by MAPPO's centralized critic.</figcaption>
+  </figure>
+
+  <h3>4.2.2 &nbsp; Action-space design</h3>
+  <p>The action space is discrete with four green phases that follow standard traffic-engineering
+  practice, listed in Table 4.1 and drawn in Figure 4.2. At each decision the agent picks one of
+  north–south through/right, north–south left, east–west through/right, or east–west left; right
+  turns are permissive in every phase. Keeping the action set this small and standard means the
+  policy chooses <em>what</em> movement to serve next rather than micromanaging signal strings,
+  which keeps learning tractable while staying faithful to how real signals are programmed.</p>
+
+  <div class="tbl-wrap" id="tab4-1">
+    <table>
+      <caption><b>Table 4.1.</b> The four-phase discrete action space and its mapping onto the
+      SUMO traffic-light program. Yellow transitions between phases are inserted automatically by
+      the simulator.</caption>
+      <thead>
+        <tr><th>Action</th><th>SUMO phase</th><th>Movement served</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>a<sub>0</sub></td><td>Phase 0</td><td>North–south through and right turns</td></tr>
+        <tr><td>a<sub>1</sub></td><td>Phase 6</td><td>North–south left turns</td></tr>
+        <tr><td>a<sub>2</sub></td><td>Phase 2</td><td>East–west through and right turns</td></tr>
+        <tr><td>a<sub>3</sub></td><td>Phase 4</td><td>East–west left turns</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <figure id="fig4-2" class="svg-fig">
+    <svg viewBox="0 0 720 180" role="img" aria-label="The four signal phases">
+      <g font-family="Helvetica" font-size="11" text-anchor="middle">
+        <!-- template function drawn four times -->
+        <!-- a0 NS through -->
+        <g transform="translate(20,20)">
+          <rect x="0" y="0" width="140" height="120" rx="6" fill="#f7f9fb" stroke="#cdd3da"/>
+          <rect x="58" y="0" width="24" height="120" fill="#e3eaf1"/><rect x="0" y="48" width="140" height="24" fill="#e3eaf1"/>
+          <line x1="64" y1="8" x2="64" y2="112" stroke="#1f8a3b" stroke-width="4.5" marker-end="url(#ah)"/>
+          <line x1="76" y1="112" x2="76" y2="8" stroke="#1f8a3b" stroke-width="4.5" marker-end="url(#ah)"/>
+          <text x="70" y="158" font-weight="bold" fill="#1f4e79">a₀ · NS through</text>
+        </g>
+        <!-- a1 NS left -->
+        <g transform="translate(195,20)">
+          <rect x="0" y="0" width="140" height="120" rx="6" fill="#f7f9fb" stroke="#cdd3da"/>
+          <rect x="58" y="0" width="24" height="120" fill="#e3eaf1"/><rect x="0" y="48" width="140" height="24" fill="#e3eaf1"/>
+          <path d="M76 112 L76 66 Q76 60 32 60" fill="none" stroke="#1f8a3b" stroke-width="4.5" marker-end="url(#ah)"/>
+          <path d="M64 8 L64 54 Q64 60 108 60" fill="none" stroke="#1f8a3b" stroke-width="4.5" marker-end="url(#ah)"/>
+          <text x="70" y="158" font-weight="bold" fill="#1f4e79">a₁ · NS left</text>
+        </g>
+        <!-- a2 EW through -->
+        <g transform="translate(370,20)">
+          <rect x="0" y="0" width="140" height="120" rx="6" fill="#f7f9fb" stroke="#cdd3da"/>
+          <rect x="58" y="0" width="24" height="120" fill="#e3eaf1"/><rect x="0" y="48" width="140" height="24" fill="#e3eaf1"/>
+          <line x1="8" y1="66" x2="132" y2="66" stroke="#b8341b" stroke-width="4.5" marker-end="url(#ah)"/>
+          <line x1="132" y1="54" x2="8" y2="54" stroke="#b8341b" stroke-width="4.5" marker-end="url(#ah)"/>
+          <text x="70" y="158" font-weight="bold" fill="#b8341b">a₂ · EW through</text>
+        </g>
+        <!-- a3 EW left -->
+        <g transform="translate(545,20)">
+          <rect x="0" y="0" width="140" height="120" rx="6" fill="#f7f9fb" stroke="#cdd3da"/>
+          <rect x="58" y="0" width="24" height="120" fill="#e3eaf1"/><rect x="0" y="48" width="140" height="24" fill="#e3eaf1"/>
+          <path d="M8 66 L60 66 Q66 60 66 16" fill="none" stroke="#b8341b" stroke-width="4.5" marker-end="url(#ah)"/>
+          <path d="M132 54 L80 54 Q74 60 74 104" fill="none" stroke="#b8341b" stroke-width="4.5" marker-end="url(#ah)"/>
+          <text x="70" y="158" font-weight="bold" fill="#b8341b">a₃ · EW left</text>
+        </g>
+      </g>
+    </svg>
+    <figcaption><b>Figure 4.2.</b> The four-phase action space. The agent selects which family of
+    movements to serve at its intersection; each phase serves <em>both</em> opposing approaches at
+    once (north and south together, or east and west together), shown by the paired arrows. Right
+    turns are permissive throughout. North–south phases are drawn in blue and east–west in red.</figcaption>
+  </figure>
+
+  <h3>4.2.3 &nbsp; Reward-function design</h3>
+  <p>The reward is the lever that defines what "good" means, and it was deliberately built from
+  five weighted components so that the agent balances several objectives at once rather than
+  chasing a single proxy. In the project's canonical configuration (referred to throughout as
+  <em>configuration&nbsp;v2</em>) the per-step reward is</p>
+
+  <p class="eq">r<sub>t</sub> = &minus;1.0&middot;W<sub>t</sub> &minus; 0.25&middot;Q<sub>t</sub>
+  + 0.1&middot;T<sub>t</sub> &minus; 0.4&middot;P<sub>t</sub> &minus; 0.4&middot;N<sub>t</sub>
+  <span class="num">(4.1)</span></p>
+
+  <p>clipped to the range <span class="mono">[&minus;3.0, 1.0]</span>. The five terms, whose
+  relative magnitudes are drawn in Figure 4.3, are:</p>
+  <ul>
+    <li><strong>W<sub>t</sub> — cumulative waiting time</strong> (weight &minus;1.0), the primary
+    objective, measured over all vehicles via the lane-area detectors. This dominates the reward,
+    which is what keeps the agent focused on actually moving traffic.</li>
+    <li><strong>Q<sub>t</sub> — queue length</strong> (weight &minus;0.25), the count of halted
+    vehicles, which discourages the build-up that leads to spillback.</li>
+    <li><strong>T<sub>t</sub> — throughput</strong> (weight +0.1), the number of completed trips;
+    this is a network-wide shared term measured across the whole city, rather than per-agent.</li>
+    <li><strong>P<sub>t</sub> — local pressure</strong> (weight &minus;0.4), the queue imbalance
+    between incoming and outgoing lanes at the agent's own intersection.</li>
+    <li><strong>N<sub>t</sub> — neighbour pressure</strong> (weight &minus;0.4), the spatially
+    discounted pressure from adjacent intersections
+    (<span class="mono">&gamma;<sub>s</sub>&nbsp;=&nbsp;0.9</span>). This is the single explicit
+    multi-agent coupling term in the reward, and it is the lever that distinguishes MAPPO from
+    IPPO in Chapter&nbsp;6.</li>
+  </ul>
+
+  <p>A few design choices in this reward deserve comment. Waiting time is weighted most heavily
+  because it is the outcome road users actually feel, and making it dominant keeps the agent from
+  gaming a proxy — a policy can reduce queue length for a moment by flushing one approach, but it
+  cannot fake low waiting time without genuinely moving traffic. The queue and pressure terms act
+  as denser, faster-reacting shaping signals that give the agent useful gradient on every step
+  rather than only when a vehicle finally completes its trip. The throughput term is kept small and
+  positive as a gentle nudge toward completing trips, and the whole reward is clipped to a bounded
+  range so that a single catastrophic step — a sudden total gridlock — cannot dominate the
+  gradient and destabilize learning. The neighbour term is deliberately the only piece that reaches
+  outside the agent's own intersection, which is what lets the MAPPO-versus-IPPO comparison turn it
+  cleanly on and off.</p>
+
+  <figure id="fig4-3" class="svg-fig fig-narrow">
+    <svg viewBox="0 0 520 230" role="img" aria-label="Relative weights of the reward components">
+      <line x1="200" y1="14" x2="200" y2="200" stroke="#888" stroke-width="1"/>
+      <text x="200" y="218" text-anchor="middle" font-family="Helvetica" font-size="10" fill="#888">0</text>
+      <g font-family="Helvetica" font-size="11">
+        <!-- W -1.0 -->
+        <rect x="40" y="20" width="160" height="24" fill="#b8341b"/><text x="34" y="37" text-anchor="end">W (wait)</text><text x="120" y="37" fill="#fff" text-anchor="middle">−1.0</text>
+        <!-- Q -0.25 -->
+        <rect x="160" y="56" width="40" height="24" fill="#c9543f"/><text x="34" y="73" text-anchor="end">Q (queue)</text><text x="180" y="73" fill="#333" text-anchor="middle" font-size="9">−0.25</text>
+        <!-- T +0.1 -->
+        <rect x="200" y="92" width="16" height="24" fill="#1f8a3b"/><text x="34" y="109" text-anchor="end">T (throughput)</text><text x="232" y="109" fill="#1f8a3b" text-anchor="start" font-size="9">+0.1</text>
+        <!-- P -0.4 -->
+        <rect x="136" y="128" width="64" height="24" fill="#c9543f"/><text x="34" y="145" text-anchor="end">P (pressure)</text><text x="168" y="145" fill="#fff" text-anchor="middle" font-size="9">−0.4</text>
+        <!-- N -0.4 -->
+        <rect x="136" y="164" width="64" height="24" fill="#8f2616"/><text x="34" y="181" text-anchor="end">N (neighbour)</text><text x="168" y="181" fill="#fff" text-anchor="middle" font-size="9">−0.4</text>
+      </g>
+    </svg>
+    <figcaption><b>Figure 4.3.</b> The five reward components and their weights. Waiting time
+    dominates; the neighbour-pressure term N is the only explicit cross-agent coupling and is
+    switched off for IPPO. The throughput term (green) is the only positive, network-wide signal.</figcaption>
+  </figure>
+
+  <h2>4.3 &nbsp; Task 3 — Neural-Network Models</h2>
+  <p>Two networks were implemented, an actor and a critic, shown together in Figure 4.4. The
+  <strong>actor</strong> is decentralized: it maps the agent's 70-dimensional local observation
+  through two hidden layers of 256 units with <span class="mono">tanh</span> activations to four
+  action logits. The <strong>critic</strong> is centralized: it consumes the 280-dimensional
+  global state — the four agents' observations concatenated — through hidden layers of 512, 256
+  and 128 units with ReLU activations to a single scalar value estimate. All four agents share a
+  single set of actor weights (parameter sharing across the homogeneous intersections), so one
+  policy is trained from the experience of all four. Orthogonal initialization and a running
+  observation normalizer (a <span class="mono">MeanStdFilter</span>) are used throughout, both of
+  which are standard stabilizers in strong PPO implementations.</p>
+
+  <figure id="fig4-4" class="svg-fig">
+    <svg viewBox="0 0 720 280" role="img" aria-label="Actor and critic network architecture">
+      <!-- Actor -->
+      <text x="180" y="26" text-anchor="middle" font-family="Helvetica" font-size="13" font-weight="bold" fill="#1f4e79">Actor (decentralized)</text>
+      <g font-family="Helvetica" font-size="10.5" text-anchor="middle">
+        <rect x="40" y="50" width="60" height="150" rx="5" fill="#dce6f0" stroke="#1f4e79"/><text x="70" y="128" transform="rotate(-90 70 128)">obs · 70</text>
+        <rect x="130" y="70" width="56" height="110" rx="5" fill="#1f4e79"/><text x="158" y="120" fill="#fff">256</text><text x="158" y="135" fill="#fff" font-size="8">tanh</text>
+        <rect x="206" y="70" width="56" height="110" rx="5" fill="#1f4e79"/><text x="234" y="120" fill="#fff">256</text><text x="234" y="135" fill="#fff" font-size="8">tanh</text>
+        <rect x="282" y="95" width="56" height="60" rx="5" fill="#2e6aa0"/><text x="310" y="120" fill="#fff">4</text><text x="310" y="134" fill="#fff" font-size="8">logits</text>
+      </g>
+      <g stroke="#9bb4cd" stroke-width="1" fill="none">
+        <line x1="100" y1="125" x2="130" y2="125"/><line x1="186" y1="125" x2="206" y2="125"/><line x1="262" y1="125" x2="282" y2="125"/>
+      </g>
+      <!-- Critic -->
+      <text x="540" y="26" text-anchor="middle" font-family="Helvetica" font-size="13" font-weight="bold" fill="#b8341b">Critic (centralized)</text>
+      <g font-family="Helvetica" font-size="10.5" text-anchor="middle">
+        <rect x="378" y="40" width="60" height="200" rx="5" fill="#f1ddd8" stroke="#b8341b"/><text x="408" y="146" transform="rotate(-90 408 146)">global · 280</text>
+        <rect x="468" y="55" width="50" height="170" rx="5" fill="#b8341b"/><text x="493" y="142" fill="#fff">512</text><text x="493" y="156" fill="#fff" font-size="8">ReLU</text>
+        <rect x="538" y="80" width="50" height="120" rx="5" fill="#b8341b"/><text x="563" y="142" fill="#fff">256</text><text x="563" y="156" fill="#fff" font-size="8">ReLU</text>
+        <rect x="608" y="100" width="50" height="80" rx="5" fill="#b8341b"/><text x="633" y="138" fill="#fff">128</text><text x="633" y="152" fill="#fff" font-size="8">ReLU</text>
+        <rect x="668" y="122" width="40" height="36" rx="5" fill="#c9543f"/><text x="688" y="144" fill="#fff">V</text>
+      </g>
+      <g stroke="#d6a99e" stroke-width="1" fill="none">
+        <line x1="438" y1="140" x2="468" y2="140"/><line x1="518" y1="140" x2="538" y2="140"/><line x1="588" y1="140" x2="608" y2="140"/><line x1="658" y1="140" x2="668" y2="140"/>
+      </g>
+      <text x="360" y="270" text-anchor="middle" font-family="Helvetica" font-size="10" fill="#555">All four agents share one actor (parameter sharing); the critic is used only during training.</text>
+    </svg>
+    <figcaption><b>Figure 4.4.</b> Actor and critic network design. The decentralized actor reads
+    a single agent's 70-dimensional observation; the centralized critic reads the 280-dimensional
+    global state. Replacing the centralized critic with a 70-dimensional local one is exactly the
+    change that turns MAPPO into IPPO.</figcaption>
+  </figure>
+
+  <h2>4.4 &nbsp; Task 4 — Experimental Pipeline and Evaluation Design</h2>
+  <p>The final design task was the experimental machinery: building the environment, wiring up
+  training, and defining how controllers would be judged. The environment, training
+  configuration, and full system architecture are documented in Chapter&nbsp;6; what matters here
+  is the set of <em>metrics</em> chosen to evaluate learning and behaviour, because they
+  determine what conclusions can be drawn.</p>
+  <p>Training was tracked through five quantities. <strong>Episode reward</strong> is the average
+  return across agents and is the headline learning signal. <strong>Explained variance</strong>
+  measures how well the critic's value predictions match the actual returns; values near one mean
+  accurate prediction, near zero mean no better than guessing the mean, and negative values
+  signal a failing critic. <strong>KL divergence</strong> measures how far each policy update
+  moves the policy, and PPO watches it to make sure updates stay conservative.
+  <strong>Entropy</strong> measures how random the policy still is — high entropy means the agent
+  is still exploring, and for four actions the maximum is <span class="mono">ln(4)&nbsp;&approx;&nbsp;1.39</span>.
+  Finally, <strong>value and policy loss</strong> track the two halves of the optimization.
+  Behaviour at evaluation was judged on traffic outcomes — average and maximum waiting time,
+  queue (halting) counts, completed trips, and the number of phase switches — which are the
+  quantities Chapter&nbsp;7 reports. Designing IPPO and the paper-baseline as controlled
+  comparators (changing only what must change) was part of this same task, and the precise
+  contrasts are spelled out in Chapter&nbsp;6.</p>
+</section>
+
+<!-- ====================================================================== -->
+<!-- CHAPTER 5 — PROJECT PLAN AND GANTT CHART                               -->
+<!-- ====================================================================== -->
+<section class="chapter" id="ch5">
+  <h1><span class="chapter-num">Chapter 5</span>Project Plan and Gantt Chart</h1>
+
+  <p class="lead-para">A graduation project that includes multi-day training runs lives or dies by
+  its schedule, so the work was planned around the constraint that compute, not ideas, would be
+  the bottleneck. This chapter lays out how the two semesters were structured and where the plan
+  bent under that constraint.</p>
+
+  <h2>5.1 &nbsp; Two-Semester Structure</h2>
+  <p>The project ran across two semesters with a clear division of labour. <strong>Semester&nbsp;1</strong>
+  established the coordination baseline: implementing the MAPPO controller on the 2&times;2 grid,
+  getting the SUMO–RLlib stack working end to end, and demonstrating stable convergence against
+  the heuristic baselines. <strong>Semester&nbsp;2</strong> was the comparative study: building
+  IPPO as the independent-learner comparator, reproducing the Yu&nbsp;et&nbsp;al. paper-baseline
+  as a fidelity check, fixing the evaluation protocol so that all controllers are compared
+  fairly, and running the multi-seed evaluations that produce the central result. The Gantt chart
+  in Figure 5.1 lays these phases out over the project calendar.</p>
+
+  <figure id="fig5-1">
+    <img src="assets/img/Gantt Chart.png" alt="Project Gantt chart across the two semesters">
+    <figcaption><b>Figure 5.1.</b> Project Gantt chart. Semester&nbsp;1 covers the literature
+    foundation, environment build, and MAPPO baseline; Semester&nbsp;2 covers the IPPO and
+    paper-baseline comparators, the fair-evaluation correction, and the analysis that carries the
+    conclusions. The scale-up and social-dilemma tasks were planned but deferred.</figcaption>
+  </figure>
+
+  <h2>5.2 &nbsp; Where the Plan Adapted</h2>
+  <p>The original Semester&nbsp;2 plan was ambitious: it included scaling the network from
+  2&times;2 to 5&times;5, training both algorithms at that scale, and then adding a separate
+  social-dilemma environment. As the work progressed it became clear that the
+  MAPPO-versus-IPPO and MAPPO-versus-paper comparisons on the 2&times;2 grid were the experiments
+  that actually carry the research conclusions, and that the scale-up — while valuable — is
+  implementation-heavy and enormously compute-hungry without changing those conclusions. The
+  5&times;5 network was therefore built and a training run attempted (Chapter&nbsp;6), but a
+  single training iteration took on the order of nine to twelve hours on the available hardware,
+  which made a full run infeasible inside the project window. The scale-up and the social-dilemma
+  environment were consequently re-scoped as future work (Chapter&nbsp;9). This was a deliberate
+  prioritization decision rather than a failure of planning: it concentrated the limited compute
+  budget on the experiments that answer the research question, and it is reflected in the
+  later phases of Figure 5.1.</p>
+</section>
+
+<!-- ====================================================================== -->
+<!-- CHAPTER 6 — IMPLEMENTATION                                             -->
+<!-- ====================================================================== -->
+<section class="chapter" id="ch6">
+  <h1><span class="chapter-num">Chapter 6</span>Implementation</h1>
+
+  <p class="lead-para">This chapter describes how the design of Chapter&nbsp;4 was turned into a
+  working system: the software stack, the simulated environment, the way data is generated in the
+  absence of any fixed dataset, the training architecture, the two algorithms under comparison and
+  the published baseline, the fair evaluation protocol, and finally the attempt to scale the whole
+  thing up to a 5&times;5 grid.</p>
+
+  <h2>6.1 &nbsp; Technical Stack</h2>
+  <p>The environment is built on SUMO (Simulation of Urban MObility), an open-source microscopic
+  traffic simulator that models every vehicle individually <a class="cref" href="#ref-25">[25]</a>.
+  SUMO is driven from Python through TraCI (the Traffic Control Interface), which lets the learning
+  code read detector values and set signal phases step by step. On the learning side the project
+  uses Ray RLlib, a scalable reinforcement-learning library that handles the distributed collection
+  of experience and the multi-agent training loop <a class="cref" href="#ref-26">[26]</a>, with the
+  neural networks implemented in PyTorch <a class="cref" href="#ref-27">[27]</a>. Training ran on a
+  single workstation with one NVIDIA RTX&nbsp;3060&nbsp;Ti GPU for the network updates and an AMD
+  Ryzen&nbsp;5&nbsp;3600 CPU supplying three parallel rollout workers, each running its own SUMO
+  instance. This modest, single-machine setup is important context for the scaling discussion: it
+  is comfortably enough for the 2&times;2 grid and decidedly not enough for the 5&times;5 one.</p>
+
+  <p>The choice of a <em>microscopic</em> simulator is deliberate. SUMO models each vehicle's
+  position, speed and car-following behaviour individually rather than treating traffic as an
+  aggregate flow, which is what makes the queue, pressure and waiting-time signals the reward
+  depends on physically meaningful. The price of that fidelity is computational: every simulation
+  step advances every vehicle, so the cost of a step scales with the number of vehicles on the
+  network — the very fact that makes the 5&times;5 grid so expensive. On the interface side, the
+  project uses standard TraCI rather than the faster in-process libsumo binding, because libsumo
+  proved unreliable to start on this particular setup; the modest per-step overhead of TraCI is a
+  reasonable price for a simulation loop that actually runs, and it does not change any result, only
+  the wall-clock time to obtain it.</p>
+
+  <h2>6.2 &nbsp; The 2&times;2 Environment</h2>
+  <p>The environment is a 2&times;2 grid of four signalized intersections, labelled J1 to J4, each
+  controlled by one agent. The topology and the neighbour relationships that the observation
+  vector depends on are shown in Figure 6.1. Roads between intersections are 150&nbsp;m long and the
+  entry/exit roads are 100&nbsp;m; every road has three lanes under strict directional assignment —
+  lane&nbsp;0 for right turns, lane&nbsp;1 for straight-through, and lane&nbsp;2 for left turns — as
+  drawn in Figure 6.2. Lane-area detectors span the full length of each lane, giving the agents
+  complete observability of vehicle positions, speeds and waiting times.</p>
+
+  <figure id="fig6-1" class="fig-narrow">
+    <img src="assets/img/2x2-grid.png" alt="The 2x2 grid network of four intersections in SUMO">
+    <figcaption><b>Figure 6.1.</b> The 2&times;2 grid network as built in SUMO, with its four
+    signalized intersections (J1–J4). Each junction connects to two neighbours
+    (J1&harr;J2, J1&harr;J3, J2&harr;J4, J3&harr;J4) through 150&nbsp;m internal roads, with
+    100&nbsp;m entry/exit roads at the network boundary. These adjacencies define the 42 neighbour
+    features in each agent's observation.</figcaption>
+  </figure>
+
+  <figure id="fig6-2" class="fig-narrow">
+    <img src="assets/img/lane-design.png" alt="Per-approach three-lane directional design">
+    <figcaption><b>Figure 6.2.</b> Per-approach lane design. Each three-lane road assigns
+    lane&nbsp;0 to right turns, lane&nbsp;1 to through movements, and lane&nbsp;2 to left turns, so
+    that the detectors can attribute queues to specific movements and the action phases map cleanly
+    onto lane groups.</figcaption>
+  </figure>
+
+  <p>An episode lasts 3,600 simulated seconds with a 5-second action interval, giving up to 720
+  decision points per agent. The demand profile is deliberately realistic and time-varying rather
+  than uniform: traffic is light from 0 to 600&nbsp;s, rises to a sustained rush hour from 600 to
+  2,400&nbsp;s, then eases back to light traffic for the final stretch. This shape matters, because
+  a controller that looks good under light load may fall apart under the rush, and the agents have
+  to learn timing that holds up across the whole profile.</p>
+
+  <h2>6.3 &nbsp; The Environment as a Data Source</h2>
+  <p>A point worth dwelling on, because it sets reinforcement learning apart from the supervised
+  machine-learning projects this report might otherwise be compared with, is that there is
+  <em>no fixed dataset here at all</em>. There is no folder of labelled examples collected ahead of
+  time, no train/validation/test split in the conventional sense, and nothing to download. The
+  "data" is generated on the fly: at every step the agent acts, SUMO advances the simulation, and
+  the resulting transition — observation, action, reward, next observation — becomes one more
+  training sample. The dataset is therefore a product of the policy that is being trained, and it
+  shifts continuously as that policy improves. Early in training the agents wander into long
+  queues and the data is full of gridlock; late in training the same network produces free-flowing
+  traffic and the data looks completely different. This moving-target quality is precisely the
+  non-stationarity that makes RL — and especially MARL — hard.</p>
+
+  <p>Two design choices stand in for the usual notion of a dataset. The first is the
+  <strong>demand profile</strong> described above, which is the closest thing the project has to a
+  "distribution" the agents must fit: the fixed light–rush–light schedule of vehicle insertions
+  defines the population of situations the controller is trained and tested on. The second is the
+  <strong>random seed</strong>, which controls the micro-level behaviour of individual vehicles
+  (car-following, lane choice, minor timing). Training uses a fixed seed for reproducibility, and
+  evaluation sweeps a small set of <em>held-out</em> seeds (42 through 46) so that the reported
+  numbers reflect performance across several independent realizations of the same demand rather
+  than a single lucky or unlucky run. In that sense the seed sweep plays the role a test set would
+  play elsewhere: it measures how the learned policy generalizes across variation it did not see in
+  any single training episode. Because the demand itself is deterministic, this variation is
+  genuinely micro-level, which is why the multi-seed results in Chapter&nbsp;7 are tight and
+  trustworthy for this scenario.</p>
+
+  <p>This framing also clarifies what a result here does and does not claim. Because the demand
+  profile is fixed, the controllers are trained and judged on one well-defined traffic scenario
+  rather than on an exhaustive sample of every condition a real network might see. That is the right
+  scope for a controlled comparison — it removes demand variability as a confound, so any difference
+  between MAPPO and IPPO must come from the algorithms rather than from one happening to see easier
+  traffic. It does, however, mean that conclusions are stated for this scenario, and broadening the
+  demand distribution is a natural robustness extension. The deliberate light–rush–light shape was
+  chosen precisely so that the single scenario is not trivially easy: a controller has to cope with
+  a genuine congestion build-up and the recovery afterwards, not merely hold steady under a constant
+  trickle of cars.</p>
+
+  <h2>6.4 &nbsp; Training Architecture</h2>
+  <p>Training follows the standard distributed-RL pattern, sketched in Figure 6.3. A central driver
+  process holds the master copy of the policy and critic weights on the GPU. Three rollout workers
+  run in parallel on CPU cores, and each owns its own SUMO simulation reached over a unique TraCI
+  port; the workers collect experience by running the current policy in their environments and
+  shipping the resulting trajectories back to the driver. Once enough experience has accumulated
+  (the batch), the driver performs the PPO update — several epochs of clipped policy-gradient
+  steps over the batch — and broadcasts the new weights back to the workers for the next round.
+  Batching is done over complete episodes so that advantages are computed over full trajectories,
+  and a running observation normalizer keeps the inputs well-scaled as the data distribution
+  drifts. Parallelizing the rollouts this way is what makes the wall-clock training time
+  manageable on a single machine, and it is also why the per-iteration cost explodes at larger
+  network sizes, where each SUMO step simulates far more vehicles.</p>
+
+  <figure id="fig6-3" class="svg-fig">
+    <svg viewBox="0 0 720 300" role="img" aria-label="SUMO-TraCI-RLlib training architecture">
+      <defs>
+        <marker id="ahb" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 Z" fill="#1f4e79"/></marker>
+        <marker id="ahr" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 Z" fill="#b8341b"/></marker>
+        <marker id="ahg" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 Z" fill="#777"/></marker>
+      </defs>
+      <!-- driver as a wide bar -->
+      <rect x="40" y="18" width="640" height="48" rx="8" fill="#1f4e79"/>
+      <text x="360" y="38" text-anchor="middle" font-family="Helvetica" font-size="12.5" fill="#fff" font-weight="bold">RLlib driver (GPU)</text>
+      <text x="360" y="55" text-anchor="middle" font-family="Helvetica" font-size="10" fill="#cfe0ef">collects the batch · PPO update · holds the master policy weights</text>
+      <!-- workers -->
+      <g font-family="Helvetica" font-size="11" text-anchor="middle">
+        <rect x="50" y="128" width="150" height="48" rx="6" fill="#eef3f8" stroke="#1f4e79"/><text x="125" y="148" font-weight="bold" fill="#1f4e79">Rollout worker 1</text><text x="125" y="165" font-size="9.5" fill="#555">policy rollout</text>
+        <rect x="285" y="128" width="150" height="48" rx="6" fill="#eef3f8" stroke="#1f4e79"/><text x="360" y="148" font-weight="bold" fill="#1f4e79">Rollout worker 2</text><text x="360" y="165" font-size="9.5" fill="#555">policy rollout</text>
+        <rect x="520" y="128" width="150" height="48" rx="6" fill="#eef3f8" stroke="#1f4e79"/><text x="595" y="148" font-weight="bold" fill="#1f4e79">Rollout worker 3</text><text x="595" y="165" font-size="9.5" fill="#555">policy rollout</text>
+      </g>
+      <!-- sumo -->
+      <g font-family="Helvetica" font-size="10" text-anchor="middle">
+        <rect x="55" y="232" width="140" height="40" rx="6" fill="#f6ece9" stroke="#b8341b"/><text x="125" y="250" fill="#b8341b" font-weight="bold">SUMO + TraCI</text><text x="125" y="264" fill="#555" font-size="9">port A</text>
+        <rect x="290" y="232" width="140" height="40" rx="6" fill="#f6ece9" stroke="#b8341b"/><text x="360" y="250" fill="#b8341b" font-weight="bold">SUMO + TraCI</text><text x="360" y="264" fill="#555" font-size="9">port B</text>
+        <rect x="525" y="232" width="140" height="40" rx="6" fill="#f6ece9" stroke="#b8341b"/><text x="595" y="250" fill="#b8341b" font-weight="bold">SUMO + TraCI</text><text x="595" y="264" fill="#555" font-size="9">port C</text>
+      </g>
+      <!-- driver <-> worker: weights DOWN (blue, left strand), experience UP (red dashed, right strand) -->
+      <g stroke="#1f4e79" stroke-width="1.6" fill="none" marker-end="url(#ahb)">
+        <line x1="113" y1="66" x2="113" y2="126"/><line x1="348" y1="66" x2="348" y2="126"/><line x1="583" y1="66" x2="583" y2="126"/>
+      </g>
+      <g stroke="#b8341b" stroke-width="1.6" fill="none" stroke-dasharray="5 4" marker-end="url(#ahr)">
+        <line x1="137" y1="126" x2="137" y2="66"/><line x1="372" y1="126" x2="372" y2="66"/><line x1="607" y1="126" x2="607" y2="66"/>
+      </g>
+      <!-- worker <-> SUMO: act DOWN, observe UP (grey strands) -->
+      <g stroke="#777" stroke-width="1.4" fill="none" marker-end="url(#ahg)">
+        <line x1="113" y1="176" x2="113" y2="230"/><line x1="348" y1="176" x2="348" y2="230"/><line x1="583" y1="176" x2="583" y2="230"/>
+        <line x1="137" y1="230" x2="137" y2="176"/><line x1="372" y1="230" x2="372" y2="176"/><line x1="607" y1="230" x2="607" y2="176"/>
+      </g>
+      <!-- legend -->
+      <g font-family="Helvetica" font-size="10">
+        <line x1="240" y1="92" x2="262" y2="92" stroke="#1f4e79" stroke-width="1.6" marker-end="url(#ahb)"/><text x="266" y="95.5" fill="#1f4e79">weights down</text>
+        <line x1="372" y1="92" x2="394" y2="92" stroke="#b8341b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#ahr)"/><text x="398" y="95.5" fill="#b8341b">experience up</text>
+        <line x1="300" y1="206" x2="322" y2="206" stroke="#777" stroke-width="1.4" marker-end="url(#ahg)"/><text x="326" y="209.5" fill="#777">act / observe</text>
+      </g>
+    </svg>
+    <figcaption><b>Figure 6.3.</b> The SUMO–TraCI–RLlib training architecture. Three rollout
+    workers run independent SUMO simulations in parallel and return experience to a single
+    GPU-resident driver, which performs the PPO update and broadcasts refreshed weights. The
+    per-step cost of each SUMO simulation is what makes the larger network so expensive.</figcaption>
+  </figure>
+
+  <p>The shared training hyperparameters — identical for MAPPO and IPPO so that the comparison is
+  controlled — are listed in Table 6.1. They follow established strong-PPO practice: a discount of
+  0.99 for long-horizon optimization, GAE&nbsp;<span class="mono">&lambda;</span>&nbsp;=&nbsp;0.95,
+  a clip of 0.2, and a full-batch update in which the minibatch equals the train batch.</p>
+
+  <div class="tbl-wrap" id="tab6-1">
+    <table>
+      <caption><b>Table 6.1.</b> Shared training hyperparameters (configuration&nbsp;v2), used
+      identically for MAPPO and IPPO so that only the two defining design choices differ between
+      them.</caption>
+      <thead><tr><th>Hyperparameter</th><th class="num">Value</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td>Learning rate</td><td class="num">5&times;10<sup>&minus;4</sup></td><td>balanced convergence and stability</td></tr>
+        <tr><td>Discount factor &gamma;</td><td class="num">0.99</td><td>long-horizon optimization</td></tr>
+        <tr><td>GAE &lambda;</td><td class="num">0.95</td><td>bias–variance trade-off</td></tr>
+        <tr><td>PPO clip &epsilon;</td><td class="num">0.2</td><td>limits policy change per update</td></tr>
+        <tr><td>Value clip</td><td class="num">10.0</td><td>limits value-function jumps</td></tr>
+        <tr><td>Gradient clip</td><td class="num">1.0</td><td>prevents exploding gradients</td></tr>
+        <tr><td>Entropy coefficient</td><td class="num">0.02</td><td>encourages exploration</td></tr>
+        <tr><td>Value-loss coefficient</td><td class="num">1.0</td><td>weights value vs policy loss</td></tr>
+        <tr><td>SGD iterations / update</td><td class="num">15</td><td>epochs over each batch</td></tr>
+        <tr><td>Minibatch / train batch</td><td class="num">32768 / 32768</td><td>single full-batch update</td></tr>
+        <tr><td>Rollout workers</td><td class="num">3</td><td>parallel experience collection</td></tr>
+        <tr><td>Rollout fragment</td><td class="num">200</td><td>complete-episode batching</td></tr>
+        <tr><td>Training iterations</td><td class="num">200</td><td>to stable convergence</td></tr>
+        <tr><td>Observation filter</td><td class="num">MeanStdFilter</td><td>running mean/std normalization</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>6.4.1 &nbsp; Reproducibility and parallel simulation</h3>
+  <p>Two practical details make the difference between results that can be trusted and results that
+  cannot. The first is <strong>reproducibility</strong>. Random seeds are fixed for NumPy, PyTorch
+  and SUMO so that a training run can be repeated and a checkpoint re-evaluated to the same numbers;
+  the demand schedule is deterministic, and only the evaluation seed is varied (across the held-out
+  set 42–46) to probe robustness. The second is <strong>safe parallelism</strong>. Because three
+  workers each launch their own SUMO process, they must not collide on a network port. Each worker
+  therefore derives a unique TraCI port from its process identifier, with a few retries on the rare
+  collision, so the three simulations stay completely independent. This is invisible when it works
+  and catastrophic when it does not — two workers sharing a port silently corrupt each other's
+  rollouts — which is why it is worth stating explicitly as part of the implementation.</p>
+
+  <h2>6.5 &nbsp; Algorithms Under Comparison</h2>
+  <p>The internal comparison is only as good as its control, so MAPPO and IPPO were built to differ
+  in <em>exactly two</em> things — the two design choices that define "cooperative MARL" versus
+  "independent learners" — and to be identical in every other respect, down to the actor
+  architecture and every hyperparameter in Table 6.1. The two differences are drawn side by side in
+  Figure 6.4.</p>
+
+  <ul>
+    <li><strong>MAPPO (cooperative).</strong> A <em>centralized</em> critic reads the
+    280-dimensional global state, and the neighbour-pressure reward term
+    <span class="mono">N<sub>t</sub></span> is active. This is the full cooperative package: CTDE
+    training plus an explicitly coordination-aware reward.</li>
+    <li><strong>IPPO (independent).</strong> A <em>decentralized</em> critic reads only the agent's
+    own 70-dimensional observation, and the neighbour-pressure weight is set to zero so each agent
+    optimizes a purely local objective. Parameter sharing is retained exactly as in MAPPO. This is
+    the fully independent-learners package.</li>
+  </ul>
+
+  <figure id="fig6-4" class="svg-fig">
+    <svg viewBox="0 0 720 290" role="img" aria-label="MAPPO versus IPPO design contrast">
+      <!-- MAPPO -->
+      <rect x="20" y="20" width="320" height="250" rx="8" fill="#eef3f8" stroke="#1f4e79" stroke-width="1.5"/>
+      <text x="180" y="44" text-anchor="middle" font-family="Helvetica" font-size="14" font-weight="bold" fill="#1f4e79">MAPPO · cooperative</text>
+      <g font-family="Helvetica" font-size="10" fill="#fff" text-anchor="middle">
+        <rect x="44" y="70" width="60" height="28" rx="4" fill="#2e6aa0"/><text x="74" y="89">actor 1</text>
+        <rect x="114" y="70" width="60" height="28" rx="4" fill="#2e6aa0"/><text x="144" y="89">actor 2</text>
+        <rect x="186" y="70" width="60" height="28" rx="4" fill="#2e6aa0"/><text x="216" y="89">actor 3</text>
+        <rect x="256" y="70" width="60" height="28" rx="4" fill="#2e6aa0"/><text x="286" y="89">actor 4</text>
+      </g>
+      <rect x="80" y="132" width="200" height="40" rx="6" fill="#1f4e79"/>
+      <text x="180" y="150" text-anchor="middle" font-family="Helvetica" font-size="11.5" fill="#fff" font-weight="bold">Centralized critic</text>
+      <text x="180" y="165" text-anchor="middle" font-family="Helvetica" font-size="9.5" fill="#cfe0ef">global state · 280 dim</text>
+      <g stroke="#9bb4cd" stroke-width="1" fill="none"><line x1="74" y1="98" x2="150" y2="132"/><line x1="144" y1="98" x2="170" y2="132"/><line x1="216" y1="98" x2="195" y2="132"/><line x1="286" y1="98" x2="220" y2="132"/></g>
+      <rect x="60" y="200" width="240" height="44" rx="6" fill="#dce6f0" stroke="#1f4e79"/>
+      <text x="180" y="220" text-anchor="middle" font-family="Helvetica" font-size="10.5" fill="#1f4e79">reward includes neighbour term</text>
+      <text x="180" y="236" text-anchor="middle" font-family="Helvetica" font-size="11" fill="#b8341b" font-weight="bold">N&#8202;<tspan font-size="9">t</tspan> active (−0.4)</text>
+      <!-- IPPO -->
+      <rect x="380" y="20" width="320" height="250" rx="8" fill="#f6ece9" stroke="#b8341b" stroke-width="1.5"/>
+      <text x="540" y="44" text-anchor="middle" font-family="Helvetica" font-size="14" font-weight="bold" fill="#b8341b">IPPO · independent</text>
+      <g font-family="Helvetica" font-size="10" fill="#fff" text-anchor="middle">
+        <rect x="404" y="70" width="60" height="28" rx="4" fill="#c9543f"/><text x="434" y="89">actor 1</text>
+        <rect x="474" y="70" width="60" height="28" rx="4" fill="#c9543f"/><text x="504" y="89">actor 2</text>
+        <rect x="546" y="70" width="60" height="28" rx="4" fill="#c9543f"/><text x="576" y="89">actor 3</text>
+        <rect x="616" y="70" width="60" height="28" rx="4" fill="#c9543f"/><text x="646" y="89">actor 4</text>
+      </g>
+      <g font-family="Helvetica" font-size="8.5" fill="#fff" text-anchor="middle">
+        <rect x="404" y="132" width="60" height="34" rx="4" fill="#b8341b"/><text x="434" y="150">critic</text><text x="434" y="161" font-size="7.5">70 dim</text>
+        <rect x="474" y="132" width="60" height="34" rx="4" fill="#b8341b"/><text x="504" y="150">critic</text><text x="504" y="161" font-size="7.5">70 dim</text>
+        <rect x="546" y="132" width="60" height="34" rx="4" fill="#b8341b"/><text x="576" y="150">critic</text><text x="576" y="161" font-size="7.5">70 dim</text>
+        <rect x="616" y="132" width="60" height="34" rx="4" fill="#b8341b"/><text x="646" y="150">critic</text><text x="646" y="161" font-size="7.5">70 dim</text>
+      </g>
+      <g stroke="#d6a99e" stroke-width="1" fill="none"><line x1="434" y1="98" x2="434" y2="132"/><line x1="504" y1="98" x2="504" y2="132"/><line x1="576" y1="98" x2="576" y2="132"/><line x1="646" y1="98" x2="646" y2="132"/></g>
+      <rect x="420" y="200" width="240" height="44" rx="6" fill="#f1ddd8" stroke="#b8341b"/>
+      <text x="540" y="220" text-anchor="middle" font-family="Helvetica" font-size="10.5" fill="#b8341b">reward is purely local</text>
+      <text x="540" y="236" text-anchor="middle" font-family="Helvetica" font-size="11" fill="#888" font-weight="bold">N&#8202;<tspan font-size="9">t</tspan> = 0 (off)</text>
+    </svg>
+    <figcaption><b>Figure 6.4.</b> MAPPO versus IPPO: the two design choices that differ. MAPPO
+    uses one centralized critic over the 280-dimensional global state and keeps the
+    neighbour-coupling reward term; IPPO gives each agent a decentralized critic over its own
+    70-dimensional observation and zeroes the neighbour term. Everything else — the actor, the
+    hyperparameters, and parameter sharing — is identical.</figcaption>
+  </figure>
+
+  <p>It is worth being precise about one subtlety. The throughput term
+  <span class="mono">T<sub>t</sub></span> is a network-wide signal and is kept in <em>both</em>
+  algorithms, so IPPO is most accurately described as having "no explicit neighbour coupling"
+  rather than a strictly per-agent reward. Because that term is held constant across both
+  controllers, it does not confound the comparison; the only things that change between MAPPO and
+  IPPO are the critic's information and the neighbour-pressure term, which is exactly the
+  cooperative-versus-independent contrast the study is after.</p>
+
+  <h3>6.5.1 &nbsp; The paper-baseline (fidelity check)</h3>
+  <p>To rule out the worry that the project's MAPPO is a weak strawman, it is also compared against
+  the canonical recipe of Yu&nbsp;et&nbsp;al. <a class="cref" href="#ref-14">[14]</a>, using their
+  adopted MLP preset. The settings are listed in Table 6.2. The two differ mainly in network width
+  (the paper uses 512&times;512 for both actor and critic), the actor learning rate, the entropy
+  coefficient, and a looser gradient clip; all three controllers are trained for 200 iterations
+  under identical environment dynamics so the comparison is meaningful.</p>
+
+  <div class="tbl-wrap" id="tab6-2">
+    <table>
+      <caption><b>Table 6.2.</b> The Yu&nbsp;et&nbsp;al.&nbsp;(2021) paper-baseline configuration
+      used as a fidelity check, contrasted with the project's MAPPO.</caption>
+      <thead><tr><th>Setting</th><th>Paper-baseline</th><th>Project MAPPO (v2)</th></tr></thead>
+      <tbody>
+        <tr><td>Actor network</td><td>512 &times; 512, ReLU</td><td>256 &times; 256, tanh</td></tr>
+        <tr><td>Critic network</td><td>512 &times; 512, ReLU</td><td>512 / 256 / 128, ReLU</td></tr>
+        <tr><td>Actor learning rate</td><td>7&times;10<sup>&minus;4</sup></td><td>5&times;10<sup>&minus;4</sup></td></tr>
+        <tr><td>SGD iterations / update</td><td>15</td><td>15</td></tr>
+        <tr><td>PPO clip</td><td>0.2</td><td>0.2</td></tr>
+        <tr><td>Entropy coefficient</td><td>0.015</td><td>0.02</td></tr>
+        <tr><td>Gradient clip</td><td>10.0</td><td>1.0</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>6.6 &nbsp; Baseline Controllers and the Fair Evaluation Protocol</h2>
+  <p>Two standard heuristics provide reference points. The <strong>fixed-time</strong> controller
+  cycles the phases on a pre-set schedule, and the <strong>max-pressure</strong> controller picks,
+  at each decision, the phase that best relieves the incoming-minus-outgoing queue imbalance,
+  subject to a minimum green time <a class="cref" href="#ref-21">[21]</a>. These are exactly the
+  controllers a learned policy must beat to justify itself.</p>
+
+  <p>The harder issue is making the comparison <em>fair</em>. The point turns on a small but
+  decisive detail: <strong>matched safety clearance</strong>. The learned agents operate with a
+  3-second all-red clearance on every phase change — a realistic safety constraint they were
+  <em>trained</em> under — and a heuristic controller that was allowed to switch instantaneously
+  would enjoy an advantage no real signal ever gets. The fair protocol therefore charges every
+  controller the <em>same</em> 3-second clearance, so that all four are compared on a single honest
+  axis; Chapter&nbsp;7 reports the resulting numbers.</p>
+
+  <p>Mechanically, the clearance is enforced inside the environment whenever at least one agent's
+  chosen phase differs from its current one. The affected signals are dropped to all-red for the
+  three-second window before the new green is set, and during that window the simulation continues
+  to step so that vehicle arrivals are still counted correctly. Agents that choose to hold their
+  current phase skip the clearance entirely, so the cost is paid only on genuine switches. This has
+  a quiet but important consequence for the comparison: because every phase change costs a fixed
+  three seconds of lost green, a controller that switches more often spends more of its budget on
+  clearance. That is precisely why MAPPO's roughly 21 extra switches per episode (Chapter&nbsp;7)
+  are best read as a mild inefficiency rather than a benefit — they consume clearance time without
+  buying lower waiting times in return. Charging this same cost to the heuristics is not a nicety;
+  it is the only way the four controllers can be placed on a single, honest axis.</p>
+
+  <p>A second, more technical fairness point concerns how the learned policies are evaluated at
+  all. With RLlib's connector-enabled inference, the running observation normalizer is not applied
+  automatically at evaluation time, so it has to be applied by hand; otherwise the deterministic
+  policy receives inputs on the wrong scale and collapses. The neighbour edge-connectivity metadata
+  likewise has to be forwarded into the evaluation environment so that the full 70-dimensional
+  observation is actually reconstructed. Both of these were subtle bugs that, left unfixed, would
+  have made a perfectly good policy look broken. Each controller is finally evaluated over five
+  seeds (42–46), and per-metric means, standard deviations and Welch's <em>t</em>-tests are
+  reported.</p>
+
+  <h2>6.7 &nbsp; Scaling the Environment to 5&times;5</h2>
+  <p>Because the central interpretation of this dissertation hinges on network <em>scale</em>, a
+  larger 5&times;5 grid of 25 intersections was constructed in SUMO as the natural next test bed.
+  The built network is shown in Figure 6.5: the same lane configuration, detector setup and
+  demand-shaping principles as the 2&times;2 grid, extended to a five-by-five array of junctions
+  (J1–J25) with proportionally scaled demand. At this size each agent still produces a
+  70-dimensional observation, but the centralized critic's global state grows to
+  <span class="mono">25&nbsp;&times;&nbsp;70&nbsp;=&nbsp;1,750</span> dimensions, and — more
+  importantly — each SUMO step now simulates a far larger vehicle population.</p>
+
+  <figure id="fig6-5">
+    <img src="assets/img/5x5-grid.png" alt="The 5x5 grid network loaded in the SUMO GUI">
+    <figcaption><b>Figure 6.5.</b> The 5&times;5 grid network (25 intersections, J1–J25) built in
+    SUMO as evidence of the scale-up attempt. The network loads and simulates correctly, but a
+    single training iteration took roughly nine to twelve hours on the available single-GPU
+    hardware, which made a full run infeasible within the project window.</figcaption>
+  </figure>
+
+  <p>The network builds and runs, and a training run was attempted. The obstacle was purely one of
+  compute: a single training iteration took on the order of nine to twelve hours on the available
+  hardware, against the roughly forty-eight hours a full 2&times;2 run takes for 200 iterations.
+  Extrapolated out, a converged 5&times;5 run would have taken months of uninterrupted GPU time on
+  one machine. The run was therefore aborted, and the scale-up was re-scoped as future work. The
+  constructed network is reported here as concrete evidence that the scale-up is an engineering and
+  compute problem rather than an open design question — the experiment is ready to run the moment
+  sufficient compute is available, and Chapter&nbsp;9 explains why it is the single most important
+  next step.</p>
+</section>
+
+<!-- ====================================================================== -->
+<!-- CHAPTER 7 — RESULTS AND ANALYSIS                                       -->
+<!-- ====================================================================== -->
+<section class="chapter" id="ch7">
+  <h1><span class="chapter-num">Chapter 7</span>Results and Analysis</h1>
+
+  <p class="lead-para">The findings are presented in the order that tells the story. The
+  cooperative controller is first shown to train well and to beat the heuristic baselines under a
+  fair evaluation; it is then confirmed to be a faithful implementation of the published method
+  (the external comparison); and finally it is set head-to-head against independent learners (the
+  internal comparison), with a result that inverts the natural expectation.</p>
+
+  <h2>7.1 &nbsp; Training Convergence</h2>
+  <p>The MAPPO controller trains stably to convergence over 200 iterations. The mean episode
+  reward climbs from <span class="mono">&minus;2756.5</span> at initialization to a converged
+  last-ten-iteration mean of <span class="mono">&minus;49.76&nbsp;&plusmn;&nbsp;0.41</span>, as
+  shown in Figure 7.1. The centralized critic is accurate, reaching a value-function explained
+  variance of <span class="mono">0.907</span>, and the policy updates stay conservative, with an
+  average KL divergence of <span class="mono">0.0034</span> across the final iterations
+  (Figure 7.2). Read together, these say the actor and critic are being optimized jointly and
+  healthily, with no divergence, no value collapse, and the small, controlled steps that PPO's
+  clipping is meant to produce.</p>
+
+  <p>The shape of the learning curve in Figure 7.1 is itself informative. The run passes through
+  the phases one expects from a well-posed RL problem. In the earliest iterations the policy is
+  essentially random, the network jams, and the reward is deeply negative with high variance as the
+  agents thrash around the state space. There follows a rapid-improvement phase in which the bulk
+  of the gain is made: the agents discover the basic competence of clearing queues and keeping
+  approaches flowing, and the reward climbs steeply. The curve then bends into a slower
+  fine-tuning phase, where the remaining gains come from refining timing rather than from gross
+  behavioural change, before flattening into the stable plateau near &minus;50 that defines
+  convergence. That the final ten iterations sit within a band of less than half a reward point of
+  each other is the quantitative signature of a policy that has stopped meaningfully changing —
+  which is the right moment to freeze a checkpoint and evaluate it.</p>
+
+  <figure id="fig7-1" class="fig-narrow">
+    <img src="assets/img/train_reward.png" alt="MAPPO mean episode reward over training iterations">
+    <figcaption><b>Figure 7.1.</b> MAPPO mean episode reward over training iterations. Reward
+    rises from roughly &minus;2757 to a stable plateau near &minus;50 within about 100 iterations,
+    after which it holds steady — the signature of a converged policy.</figcaption>
+  </figure>
+
+  <figure id="fig7-2">
+    <img src="assets/img/train_kl_explvar.png" alt="KL divergence and explained variance over training">
+    <figcaption><b>Figure 7.2.</b> Training stability. (a) KL divergence stays small, confirming
+    that PPO clipping constrains the size of each update. (b) The centralized critic's explained
+    variance climbs to about 0.91, indicating accurate value prediction. Both are hallmarks of a
+    well-behaved run.</figcaption>
+  </figure>
+
+  <p>The remaining training diagnostics, shown in Figure 7.3, tell the same story from a different
+  angle. Policy entropy decays gradually from its near-maximum starting value toward roughly 0.6,
+  well short of zero, which means the policy sharpened steadily as it learned good actions without
+  collapsing prematurely onto a single deterministic habit. The value loss falls by more than an
+  order of magnitude and then flattens, while the policy loss stays small and noisy throughout —
+  exactly the pattern of a critic that learns its targets while the clipped policy makes only
+  small, controlled moves. None of these curves shows the spikes or runaway growth that would
+  signal an unstable run.</p>
+
+  <figure id="fig7-3">
+    <img src="assets/img/train_entropy_loss.png" alt="Policy entropy and training losses over iterations">
+    <figcaption><b>Figure 7.3.</b> Further training diagnostics. (a) Policy entropy decays
+    gradually from near its maximum of <span class="mono">ln(4)&nbsp;&approx;&nbsp;1.39</span> toward
+    about 0.6, indicating a controlled sharpening rather than premature collapse. (b) The value loss
+    (log scale) drops by over an order of magnitude and flattens, while the policy loss stays small
+    and stable — consistent with healthy joint optimization.</figcaption>
+  </figure>
+
+  <h2>7.2 &nbsp; Comparison Against Heuristic Baselines (Fair Clearance)</h2>
+  <p>One fairness point has to be settled before any baseline number can be trusted. The learned
+  agents pay a 3-second all-red safety clearance on every phase change — a realistic constraint they
+  were trained under — whereas the heuristic controllers would otherwise switch with no such
+  clearance, which is not a cost any real signal escapes. To compare like with like, every
+  controller is therefore charged the <em>same</em> 3-second clearance. Under this fair,
+  matched-clearance protocol, summarized in Table 7.1 and Figure 7.4, the learned controllers win
+  decisively: the MAPPO controller averages <span class="mono">9.92&nbsp;&plusmn;&nbsp;0.65</span>&nbsp;s,
+  against <span class="mono">21.63&nbsp;&plusmn;&nbsp;1.00</span>&nbsp;s for max-pressure and
+  <span class="mono">47.03&nbsp;&plusmn;&nbsp;0.59</span>&nbsp;s for fixed-time. MAPPO beats
+  max-pressure by roughly a factor of two and fixed-time by nearly a factor of five, with a Welch
+  <em>t</em>-statistic against max-pressure of about 22
+  (<span class="mono">p&nbsp;&lt;&nbsp;0.001</span>).</p>
+
+  <div class="tbl-wrap" id="tab7-1">
+    <table>
+      <caption><b>Table 7.1.</b> Average waiting time (s) by controller under the matched 3-second
+      safety clearance (mean&nbsp;&plusmn;&nbsp;std over seeds 42–46). All controllers pay the same
+      realistic clearance, so the comparison is fair.</caption>
+      <thead><tr><th>Controller</th><th class="num">Avg waiting time (s)</th></tr></thead>
+      <tbody>
+        <tr class="hi"><td>MAPPO</td><td class="num">9.92 &plusmn; 0.65</td></tr>
+        <tr><td>IPPO</td><td class="num">10.34 &plusmn; 0.31</td></tr>
+        <tr><td>Paper-baseline</td><td class="num">10.21 &plusmn; 0.28</td></tr>
+        <tr><td>Max-Pressure</td><td class="num">21.63 &plusmn; 1.00</td></tr>
+        <tr><td>Fixed-Time</td><td class="num">47.03 &plusmn; 0.59</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <figure id="fig7-4">
+    <img src="assets/img/fair_comparison.png" alt="Average waiting time by controller at matched 3s clearance">
+    <figcaption><b>Figure 7.4.</b> Average waiting time for all controllers under matched 3-second
+    clearance (seeds 42–46; lower is better). The three learned controllers (shaded) cluster near
+    10&nbsp;s, while max-pressure and fixed-time sit far higher — MAPPO beats max-pressure roughly
+    two-fold and fixed-time nearly five-fold.</figcaption>
+  </figure>
+
+  <p>The gap is not marginal: the learned controllers cut average waiting time to less than half of
+  max-pressure's and roughly a fifth of fixed-time's, and they do so while paying exactly the same
+  safety cost. That both MAPPO and IPPO land in the same tight band near 10&nbsp;s — well clear of
+  either heuristic — is the first hint of the result that the rest of the chapter develops: the
+  learning is what matters here, not which learned algorithm is used.</p>
+
+  <h2>7.3 &nbsp; External Comparison: Our MAPPO versus the Published Recipe</h2>
+  <p>To rule out the possibility that the cooperative controller is an under-powered strawman, it is
+  compared against the canonical MAPPO recipe of Yu&nbsp;et&nbsp;al.
+  <a class="cref" href="#ref-14">[14]</a> with its wider 512&times;512 networks (Chapter&nbsp;6,
+  Table 6.2). The two are statistically indistinguishable on average wait —
+  <span class="mono">9.92&nbsp;&plusmn;&nbsp;0.65</span>&nbsp;s for the project's MAPPO against
+  <span class="mono">10.21&nbsp;&plusmn;&nbsp;0.28</span>&nbsp;s for the paper recipe, a Welch
+  <em>t</em>-test giving <span class="mono">p&nbsp;=&nbsp;0.388</span> — with the project's
+  configuration in fact numerically slightly ahead. Table 7.3 shows that this holds across the
+  board: the only metric on which they differ significantly is the phase-switch count, where the
+  project's MAPPO switches more often. The implemented MAPPO is therefore a faithful and
+  competitive representative of the method, which is exactly what makes the comparison that follows
+  meaningful — any failure to beat independent learners cannot be blamed on a weak MAPPO.</p>
+
+  <p>There is a small but pleasing twist buried in this comparison. The project's MAPPO uses
+  narrower networks than the published recipe (256&times;256 against 512&times;512) and a far
+  tighter gradient clip (1.0 against 10.0), yet it converges to a marginally <em>better</em> training
+  reward and matches the paper-baseline on every traffic metric. This should not be over-read — the
+  differences are within noise on the outcome metrics — but it does suggest that, for a problem of
+  this size, raw network capacity was never the binding constraint, and that the tighter,
+  more conservative optimization actually helped rather than hurt. It is a useful reminder that
+  bigger is not automatically better in deep RL, and that the stability a small clip buys can be
+  worth more than the expressiveness a wide network offers when the task does not demand that
+  expressiveness.</p>
+
+  <div class="tbl-wrap" id="tab7-3">
+    <table>
+      <caption><b>Table 7.3.</b> The project's MAPPO versus the Yu&nbsp;et&nbsp;al. paper-baseline
+      across all evaluation metrics (mean&nbsp;&plusmn;&nbsp;std over seeds 42–46;
+      <em>p</em> from Welch's <em>t</em>-test). The two are statistically indistinguishable on every
+      traffic-performance metric.</caption>
+      <thead><tr><th>Metric</th><th class="num">Project MAPPO</th><th class="num">Paper-baseline</th><th class="num">p-value</th></tr></thead>
+      <tbody>
+        <tr><td>Average wait (s)</td><td class="num">9.92 &plusmn; 0.65</td><td class="num">10.21 &plusmn; 0.28</td><td class="num">0.388</td></tr>
+        <tr><td>Average halting</td><td class="num">3.91 &plusmn; 0.11</td><td class="num">4.04 &plusmn; 0.27</td><td class="num">0.355</td></tr>
+        <tr><td>Maximum halting</td><td class="num">14.2 &plusmn; 1.6</td><td class="num">14.6 &plusmn; 1.7</td><td class="num">0.713</td></tr>
+        <tr><td>Completed trips</td><td class="num">1261.6 &plusmn; 0.9</td><td class="num">1261.6 &plusmn; 0.5</td><td class="num">1.000</td></tr>
+        <tr><td>Phase switches</td><td class="num">1391 &plusmn; 12</td><td class="num">1319 &plusmn; 23</td><td class="num sig">0.0008</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Figure 7.5 places all three learned controllers side by side across the outcome metrics. The
+  bars sit on top of one another for average wait, average and maximum halting; only the
+  phase-switch panel separates them, with the paper-baseline switching least and the project's
+  MAPPO most. In other words, the project's MAPPO, the published recipe, and the independent learner
+  all deliver the same traffic performance, and differ only in how restlessly they switch — a theme
+  the next section makes central.</p>
+
+  <figure id="fig7-5">
+    <img src="assets/img/three_way_comparison.png" alt="Three-way comparison of MAPPO, IPPO and the paper-baseline across metrics">
+    <figcaption><b>Figure 7.5.</b> Internal and external comparison together: MAPPO, IPPO and the
+    paper-baseline across four outcome metrics (mean&nbsp;&plusmn;&nbsp;SD, seeds 42–46;
+    "I" and "P" annotate each comparator's <em>p</em>-value versus MAPPO). The three are
+    indistinguishable on waiting time and halting; they separate only on phase-switch count.</figcaption>
+  </figure>
+
+  <h2>7.4 &nbsp; Internal Comparison: Coordination Value &approx; 0</h2>
+  <p>MAPPO is the sophisticated, theoretically motivated choice. Its centralized critic is designed
+  precisely to tame non-stationarity and solve credit assignment, and its neighbour-coupled reward
+  explicitly encodes coordination. The natural expectation is that it beats a set of independent
+  learners that ignore all of this. It does not.</p>
+
+  <p>Against IPPO — identical in every respect except its decentralized critic and its purely local
+  reward — MAPPO is <em>statistically indistinguishable on every traffic-performance metric</em>
+  across five seeds, as Table 7.2 and Figure 7.6 show. Average waiting time
+  (<span class="mono">p&nbsp;=&nbsp;0.236</span>), average halting
+  (<span class="mono">p&nbsp;=&nbsp;0.534</span>), maximum halting
+  (<span class="mono">p&nbsp;=&nbsp;0.745</span>) and completed trips
+  (<span class="mono">p&nbsp;=&nbsp;0.545</span>) all show no significant difference. The
+  <em>only</em> reliable difference is that MAPPO performs about 21 more phase switches per episode
+  (<span class="mono">1391&nbsp;&plusmn;&nbsp;12</span> versus
+  <span class="mono">1370&nbsp;&plusmn;&nbsp;8</span>,
+  <span class="sig">p&nbsp;=&nbsp;0.015</span>) — extra control activity that yields no measurable
+  performance benefit. The coordination value, defined as
+  <span class="mono">MAPPO&nbsp;&minus;&nbsp;IPPO</span>, is therefore approximately zero on this
+  network.</p>
+
+  <div class="tbl-wrap" id="tab7-2">
+    <table>
+      <caption><b>Table 7.2.</b> MAPPO versus IPPO across all evaluation metrics
+      (mean&nbsp;&plusmn;&nbsp;std over seeds 42–46; <em>p</em> from Welch's <em>t</em>-test). Only
+      the phase-switch count differs significantly, and it favours neither controller in performance
+      terms.</caption>
+      <thead><tr><th>Metric</th><th class="num">MAPPO</th><th class="num">IPPO</th><th class="num">p-value</th></tr></thead>
+      <tbody>
+        <tr><td>Average wait (s)</td><td class="num">9.92 &plusmn; 0.65</td><td class="num">10.34 &plusmn; 0.31</td><td class="num">0.236</td></tr>
+        <tr><td>Average halting</td><td class="num">3.91 &plusmn; 0.11</td><td class="num">4.00 &plusmn; 0.27</td><td class="num">0.534</td></tr>
+        <tr><td>Maximum halting</td><td class="num">14.2 &plusmn; 1.6</td><td class="num">14.6 &plusmn; 2.1</td><td class="num">0.745</td></tr>
+        <tr><td>Completed trips</td><td class="num">1261.6 &plusmn; 0.9</td><td class="num">1261.2 &plusmn; 1.1</td><td class="num">0.545</td></tr>
+        <tr class="hi"><td>Phase switches</td><td class="num">1391 &plusmn; 12</td><td class="num">1370 &plusmn; 8</td><td class="num sig">0.015</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <figure id="fig7-6">
+    <img src="assets/img/coordination_value.png" alt="Coordination value: MAPPO versus IPPO across five metrics">
+    <figcaption><b>Figure 7.6.</b> The central finding. Across all five metrics, MAPPO and IPPO are
+    statistically indistinguishable (marked "n.s."), except for a small, performance-neutral
+    difference in phase-switch count. The explicit coordination machinery buys no measurable
+    advantage on the 2&times;2 network.</figcaption>
+  </figure>
+
+  <p>Figure 7.7 drills into the headline metric one level further, plotting the individual per-seed
+  average-wait values rather than just their summaries. The point of the plot is the overlap: the
+  five MAPPO seeds, the five IPPO seeds, and the five paper-baseline seeds form three clouds that
+  sit on top of one another, and the small mean differences are dwarfed by the seed-to-seed spread
+  within each controller. This is what "statistically indistinguishable" looks like at the level of
+  the raw data — there is no clean separation to be found, in either direction.</p>
+
+  <figure id="fig7-7" class="fig-narrow">
+    <img src="assets/img/per_seed_wait.png" alt="Per-seed average waiting time for each controller">
+    <figcaption><b>Figure 7.7.</b> Per-seed average waiting time for MAPPO, IPPO and the
+    paper-baseline (each dot is one of seeds 42–46; bar = mean, shaded band = &plusmn;1&nbsp;SD). The
+    three clouds overlap heavily, and the within-controller spread exceeds the between-controller
+    means — the raw-data view of a near-zero coordination value.</figcaption>
+  </figure>
+
+  <h2>7.5 &nbsp; Learned Behaviour and the Meaning of the Switch Gap</h2>
+  <p>Numbers aside, it is worth describing what the trained controllers actually <em>do</em>, since
+  the behaviour is what makes the near-zero coordination value believable rather than suspicious.
+  Both learned controllers settle into adaptive phasing that tracks the demand profile: they hold
+  greens longer on the loaded approaches during the rush hour and cycle more evenly when traffic is
+  light. They also learn a form of offset timing across the grid, so that a platoon released by one
+  intersection tends to meet a green at the next rather than piling into a fresh queue — the
+  network-level behaviour the neighbour features were meant to encourage. The telling point is that
+  IPPO arrives at essentially the same behaviour <em>without</em> a centralized critic or a
+  neighbour-coupled reward, simply because parameter sharing and local optimization, on a network
+  this tightly coupled, are enough to rediscover it.</p>
+
+  <p>This also reframes the one statistically significant difference, the phase-switch count. MAPPO
+  switches about 21 more times per episode than IPPO, and it is tempting to read more switching as
+  more responsiveness. But the performance metrics flatly contradict that reading: the extra
+  switches come with no reduction in waiting time, queueing, or any other outcome. Given that every
+  switch costs a three-second all-red clearance (Section&nbsp;6.6), the additional switching is, if
+  anything, slightly wasteful — it spends green time without buying anything. The most honest
+  interpretation is that the neighbour-pressure term gives MAPPO a marginally more restless policy
+  that reacts to neighbour state more often, but on a four-intersection grid that restlessness has
+  no outcome to improve. It is a difference in <em>style</em>, not in <em>quality</em>.</p>
+
+  <p>Finally, the convergence diagnostics reinforce that none of this is an artefact of undertraining
+  or instability. Entropy decayed gradually rather than collapsing, so the policies retained a
+  healthy degree of stochasticity instead of locking prematurely onto a single action; the value and
+  policy losses fell smoothly; and the explained variance settled high. Both controllers were trained
+  under identical conditions for the same 200 iterations, so the comparison is not confounded by one
+  being trained harder than the other. When two methods converge cleanly and then prove
+  indistinguishable on outcomes, the most defensible conclusion is the literal one: at this scale,
+  the extra machinery simply is not needed.</p>
+
+  <div class="callout">
+    <span class="lab">The result in one line</span>
+    On a small, inherently cooperative network, the full cooperative MARL package performs no
+    better than independent learners. This is the plot twist the dissertation set out to surface;
+    Chapter&nbsp;8 examines why, and Chapter&nbsp;9 sets out the experiments that would test the
+    resulting hypothesis.
+  </div>
+</section>
+
+<!-- ====================================================================== -->
+<!-- CHAPTER 8 — DISCUSSION                                                 -->
+<!-- ====================================================================== -->
+<section class="chapter" id="ch8">
+  <h1><span class="chapter-num">Chapter 8</span>Discussion</h1>
+
+  <p class="lead-para">The results of Chapter&nbsp;7 invert the expectation that frames most of the
+  cooperative-MARL literature. This chapter asks why, weighs the genuine strengths and the real
+  limitations of the project's MAPPO, and turns the negative result into a testable hypothesis
+  about scale.</p>
+
+  <h2>8.1 &nbsp; Why the Coordination Value Is Near Zero</h2>
+  <p>The most parsimonious explanation is that, at this scale, there is simply little coordination
+  left for an explicit mechanism to add. A 2&times;2 grid has only four intersections, each adjacent
+  to two neighbours, and the traffic-control reward is already locally informative: on a network
+  this tightly coupled, minimizing one's own queue and waiting time is almost the same objective as
+  minimizing the network's. The incentives are, in other words, <em>already aligned</em> by the
+  structure of the problem. The centralized critic still provides a lower-variance value estimate,
+  and the neighbour-pressure term still nudges behaviour toward network awareness, but an
+  independent learner equipped with the same local observations and the same parameter sharing can
+  discover the same coordinated phasing on its own. Coordination here is <em>emergent</em> rather
+  than <em>engineered</em>: it falls out of independent optimization because the environment never
+  rewards defection.</p>
+
+  <p>Two details reinforce this reading. First, both learned controllers <em>decisively</em> beat
+  the heuristic baselines under matched clearance, so the learning is doing real work — it is not
+  that the task is trivial, but that the coordination-specific additions are redundant on top of
+  what local learning already achieves. Second, MAPPO's extra phase switches buy no improvement,
+  which is exactly what one would expect from a centralized critic that is active but not pivotal:
+  it shapes the policy slightly differently without changing what the policy ultimately achieves.</p>
+
+  <p>There is a deeper way to see why the two methods land in the same place. The centralized critic
+  and the neighbour reward are two different tools aimed at the same target: getting each agent to
+  act as if it cared about the whole network rather than only its own corner. But on a 2&times;2
+  grid the agent's own reward <em>already</em> reflects the network almost perfectly, because the
+  congestion it causes flows straight back to it within seconds. The information the centralized
+  critic adds — what the other three intersections are doing — is largely redundant with what a
+  local critic can already infer from its own queues and the spatially-discounted neighbour features
+  every agent receives in its observation. In effect, both algorithms have access to enough signal
+  to behave coordinately; MAPPO is handed that signal more explicitly, but IPPO can reconstruct it.
+  When two routes lead to the same destination, it is no surprise that the travellers arrive
+  together. The prediction this makes is sharp and testable: dilute the feedback loop by spreading
+  the agents across a larger grid, so that an agent's own reward no longer captures the network's
+  state, and the redundancy should break — which is the entire logic of the scale hypothesis
+  below.</p>
+
+  <h2>8.2 &nbsp; Strengths and Limitations of the Project's MAPPO</h2>
+  <p>It would be a misreading of these results to conclude that the project's MAPPO is a poor
+  controller. On the contrary, the external comparison in Chapter&nbsp;7 shows it matching a
+  carefully tuned published recipe, and the training curves show it converging cleanly. Its
+  strengths and limitations are summarized in Table 8.1 and discussed below.</p>
+
+  <p>On the strengths side, the most important property is <strong>stable, well-behaved
+  learning</strong>, and this is a direct consequence of PPO's clipped objective. The clip keeps
+  every policy update inside a trust region, which is visible in the consistently small KL
+  divergence of about 0.0034 and in the smooth, monotone reward curve of Figure 7.1. Interestingly,
+  the project's MAPPO actually edges out the wider paper-baseline on training reward despite using
+  smaller networks and a tighter gradient clip (1.0 versus 10.0); the tighter clip trades a little
+  raw capacity for steadier optimization, and on this problem that trade pays off. The
+  <strong>centralized critic</strong> contributes a high explained variance (about 0.91), meaning
+  value targets are accurate and the advantages fed to the actor are low-variance.
+  <strong>Parameter sharing</strong> across the four homogeneous intersections makes the method
+  sample-efficient, since every agent's experience trains the one shared policy.</p>
+
+  <p>On the limitations side, the headline finding is itself the central limitation: at this scale
+  the cooperative machinery is <strong>redundant</strong>. The centralized critic requires the
+  280-dimensional global state during training, which is an architectural and bookkeeping burden
+  that an independent learner avoids entirely, and it produces no measurable payoff here. The
+  neighbour-coupled reward adds a hyperparameter (the coupling weight) that must be tuned, again
+  for no measured benefit at 2&times;2. The one behavioural difference MAPPO does exhibit — about
+  21 extra phase switches per episode — is, if anything, a mild <strong>inefficiency</strong>:
+  every switch costs a 3-second all-red clearance, so more switching is more wasted green time, and
+  it buys nothing. And the global-state requirement is the very thing that makes the method
+  <strong>expensive to scale</strong>, since the critic input grows with the number of agents
+  (1,750 dimensions at 5&times;5), which interacts badly with the compute wall documented in
+  Chapter&nbsp;6.</p>
+
+  <div class="tbl-wrap" id="tab8-1">
+    <table>
+      <caption><b>Table 8.1.</b> Strengths and limitations of the project's MAPPO, as evidenced by
+      the results of Chapter&nbsp;7.</caption>
+      <thead><tr><th>Strengths</th><th>Limitations</th></tr></thead>
+      <tbody>
+        <tr><td>Stable updates from PPO clipping (KL &asymp; 0.0034)</td><td>Coordination machinery redundant at 2&times;2 scale</td></tr>
+        <tr><td>Accurate critic (explained variance &asymp; 0.91)</td><td>Centralized critic needs 280-dim global state in training</td></tr>
+        <tr><td>Edges out the wider paper-baseline on training reward</td><td>Extra coupling-weight hyperparameter to tune</td></tr>
+        <tr><td>Sample-efficient via parameter sharing</td><td>~21 extra, performance-neutral phase switches per episode</td></tr>
+        <tr><td>Beats both heuristics ~2&times;–5&times; under fair clearance</td><td>Global-state critic scales poorly (1,750 dim at 5&times;5)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>8.3 &nbsp; The Scale Hypothesis</h2>
+  <p>If the coordination value is small <em>because</em> the network is small, then it should grow
+  with scale, and that is the hypothesis this work sharpens. As a grid enlarges, an agent's actions
+  influence ever more distant intersections through longer chains of traffic; the gap between
+  "minimize my own delay" and "minimize the network's delay" widens, the non-stationarity each
+  single learner faces intensifies, and the centralized critic's access to the global state should
+  begin to translate into a measurable advantage. This is exactly the regime in which network-level
+  cooperation has been shown to matter: CoLight demonstrates clear gains from sharing neighbour
+  information at city scale <a class="cref" href="#ref-20">[20]</a>, and the large-scale study of
+  Chu&nbsp;et&nbsp;al. reports that neighbour-aware, carefully designed shared rewards improve
+  performance while naive individual rewards can actively harm throughput
+  <a class="cref" href="#ref-22">[22]</a>. The near-zero coordination value measured here is
+  therefore not in tension with that literature; it is the expected <em>small-scale</em> end of the
+  same curve.</p>
+
+  <h2>8.4 &nbsp; Implications</h2>
+  <p>The practical implication is a note of caution paired with a research direction. The caution is
+  that, on small or tightly coupled multi-agent problems, the considerable machinery of CTDE may be
+  unnecessary: a simpler independent-learning approach with parameter sharing can match it at lower
+  implementation and training cost. The research direction is that the <em>value of coordination</em>
+  should be treated as a quantity that depends on system scale and on how strongly incentives
+  conflict, rather than as a fixed property of an algorithm. The controlled traffic setting used
+  here establishes a clean zero-point for that quantity, against which both larger networks and
+  genuine social dilemmas can be measured — which is precisely what the future work proposes.</p>
+
+  <h2>8.5 &nbsp; Threats to Validity</h2>
+  <p>A negative result invites a fair challenge: is it real, or did the experiment simply fail to
+  give coordination a chance to shine? Several checks were built in specifically to answer that.
+  The first worry is a <em>weak MAPPO</em> — perhaps the cooperative agent was under-powered, so of
+  course it failed to pull ahead. The external comparison rebuts this directly: the project's MAPPO
+  matches a carefully tuned published recipe on every metric, so it is a faithful, competitive
+  implementation rather than a strawman. The second worry is an <em>unfair evaluation</em> — perhaps
+  the protocol favoured one controller. The fairness work cuts the other way: the matched-clearance
+  correction actually exposed and removed a bias that had favoured the heuristics, and MAPPO and
+  IPPO are evaluated under identical conditions, so nothing in the protocol advantages the
+  independent learner.</p>
+
+  <p>A third worry concerns <em>statistical power</em>. With five seeds, could a genuine MAPPO
+  advantage be hiding below the noise? Two things make this unlikely to overturn the conclusion. The
+  effect sizes are not merely non-significant, they are tiny — the average-wait gap is a few tenths
+  of a second on a ten-second baseline, and it points slightly in IPPO's favour rather than MAPPO's.
+  And because the demand schedule is deterministic, the seed-to-seed variation is genuinely
+  micro-level, which is why the standard deviations are small and the means are stable. A larger
+  seed sweep might sharpen the <em>p</em>-values, but it would not turn a fraction-of-a-second,
+  wrong-signed gap into a meaningful coordination advantage. The honest scope of the claim is
+  therefore narrow and defensible: on <em>this</em> demand scenario, at <em>this</em> network size,
+  the coordination value is indistinguishable from zero. Whether it stays that way as the network
+  grows is an empirical question — and the central one the future work is designed to settle.</p>
+</section>
+
+<!-- ====================================================================== -->
+<!-- CHAPTER 9 — FUTURE WORK                                                -->
+<!-- ====================================================================== -->
+<section class="chapter" id="ch9">
+  <h1><span class="chapter-num">Chapter 9</span>Future Work</h1>
+
+  <p class="lead-para">The central finding — that an explicit coordination mechanism buys
+  essentially nothing over independent learners on a 2&times;2 traffic network — is best read not
+  as an endpoint but as a precisely located starting point. Three directions follow directly, the
+  first two of which were placed beyond this submission by compute constraints rather than by
+  design.</p>
+
+  <h2>9.1 &nbsp; Network Scale-Up (2&times;2 &rarr; 5&times;5)</h2>
+  <p>The most direct test of the interpretation in Chapter&nbsp;8 is to grow the network. If the
+  coordination value is near zero because a 2&times;2 grid is small enough that incentives are
+  already locally aligned, then enlarging the network to 5&times;5 (25 intersections) should widen
+  the gap between MAPPO and IPPO: distant intersections interact through longer traffic chains,
+  non-stationarity intensifies, and the centralized critic's global view should begin to pay off.
+  This expectation is consistent with the large-scale findings of Chu&nbsp;et&nbsp;al.
+  <a class="cref" href="#ref-22">[22]</a> and the network-level cooperation of CoLight
+  <a class="cref" href="#ref-20">[20]</a>. As Chapter&nbsp;6 documented, the 5&times;5 SUMO network
+  was already built and a training run attempted, but a single iteration took nine to twelve hours
+  on a single GPU, so training it to convergence exceeded the available budget. The experiment is
+  therefore <em>ready to run</em> the moment sufficient compute is available — it is the single most
+  important next step, and the one most likely to confirm or refute the scale hypothesis.</p>
+
+  <p>It is worth being precise about what a 5&times;5 run would measure, because the value of the
+  experiment lies in its design rather than in merely "trying a bigger grid." The quantity of
+  interest is the same coordination value — MAPPO minus IPPO — recomputed at the larger scale, using
+  the identical controlled setup so that the only thing that has changed between the 2&times;2 and
+  5&times;5 measurements is the network size. If the coordination value remains near zero, the
+  redundancy argument of Chapter&nbsp;8 generalizes and the cooperative machinery is genuinely
+  optional for traffic of this kind; if it grows, the scale hypothesis is confirmed and one could
+  even begin to chart <em>how fast</em> it grows with the number of agents. Either outcome is
+  informative, which is the mark of a well-posed experiment. The practical obstacle is purely the
+  cost of generating the data: with a single GPU and SUMO steps that now simulate twenty-five
+  intersections' worth of vehicles, a converged run is a matter of weeks to months of uninterrupted
+  compute, which is exactly the kind of resource a larger machine or a modest cluster would
+  unlock.</p>
+
+  <h2>9.2 &nbsp; Extending to a Social Dilemma</h2>
+  <p>Traffic occupies the pure-coordination end of the spectrum: incentives are aligned, so there is
+  nothing to defect over. The complementary experiment is to move to the opposite pole — a
+  sequential social dilemma in which defection is individually tempting but collectively harmful. A
+  natural choice is an apple-harvesting commons in the style of Leibo&nbsp;et&nbsp;al.
+  <a class="cref" href="#ref-18">[18]</a>, where agents collect a slowly regrowing resource and
+  over-harvesting permanently depletes it. There, the reward-structure axis — individual versus
+  shared rewards — that is essentially inert in traffic should become decisive, allowing a direct
+  study of when shared rewards are <em>necessary</em> to sustain cooperation versus when independent
+  learning suffices. Contrasting the learned behaviours across the two environments would complete
+  the coordination–dilemma spectrum this project set out to chart.</p>
+
+  <h2>9.3 &nbsp; Efficiency–Equity Analysis</h2>
+  <p>Finally, the per-agent breakdowns already collected in this project can support a fairness
+  analysis — for instance, a Gini coefficient computed over per-intersection outcomes — to ask
+  whether high system performance requires treating some intersections markedly worse than others.
+  That question is fairly muted on a symmetric 2&times;2 grid, but it becomes pointed at larger
+  scales and sharper still in dilemma settings, where the temptation to exploit can translate
+  directly into unequal outcomes. Taken together, the three directions turn a single clean negative
+  result into a programme of work along both axes of the spectrum — scale and incentive
+  conflict.</p>
+</section>
+
+<!-- ====================================================================== -->
+<!-- CHAPTER 10 — CONCLUSION                                                -->
+<!-- ====================================================================== -->
+<section class="chapter" id="ch10">
+  <h1><span class="chapter-num">Chapter 10</span>Conclusion</h1>
+
+  <p>This dissertation set out to test a simple but consequential question on a controlled traffic
+  benchmark: does an explicitly cooperative multi-agent algorithm actually outperform a set of
+  independent learners when the two are matched in every other respect? The investigation produced
+  a clear, and initially surprising, answer.</p>
+
+  <p>A MAPPO traffic-signal controller was implemented on a 2&times;2 grid, trained to stable
+  convergence, and shown — under a fair, matched-clearance evaluation — to outperform both the
+  fixed-time and max-pressure heuristics decisively. A methodological point underpins that result:
+  the comparison is only fair when every controller is charged the same realistic safety clearance,
+  and once that matched-clearance protocol is applied the learned controllers win by a wide margin.
+  The project's MAPPO was further
+  confirmed to be a faithful implementation by matching the canonical published recipe of
+  Yu&nbsp;et&nbsp;al. on every traffic-performance metric.</p>
+
+  <p>The central result is that, against this strong and faithful MAPPO, an Independent PPO
+  comparator — differing only in its decentralized critic and purely local reward — proved
+  statistically indistinguishable on every traffic-performance metric. The sophisticated
+  coordination machinery bought no measurable advantage; its only distinguishing behaviour was a
+  slightly higher rate of phase switching that produced no benefit. On a 2&times;2 network, the
+  coordination value is approximately zero.</p>
+
+  <p>The interpretation is not that coordination is worthless, but that the testbed is too small to
+  require it: at this scale incentives are already locally aligned, and independent learners recover
+  coordinated behaviour implicitly. This precisely locates where explicit coordination should begin
+  to matter — at larger network scales — and motivates the future work of scaling to 5&times;5
+  (already built, and awaiting only compute) and of extending the study to genuine social dilemmas,
+  where reward structure and the temptation to defect are expected to make coordination
+  indispensable. The contribution of this work is thus both a careful negative result and a
+  sharpened hypothesis: the value of cooperation in multi-agent reinforcement learning is not a
+  constant but a function of scale, and the controlled traffic setting established here is the
+  baseline against which that function can now be measured.</p>
+</section>
+
+<!-- ====================================================================== -->
+<!-- REFERENCES                                                             -->
+<!-- ====================================================================== -->
+<section class="chapter refs" id="references">
+  <h1><span class="chapter-num">Bibliography</span>References</h1>
+  <ol>
+    <li id="ref-1">R. S. Sutton and A. G. Barto, <em>Reinforcement Learning: An Introduction</em>, 2nd ed. Cambridge, MA: MIT Press, 2018.</li>
+    <li id="ref-2">C. J. C. H. Watkins and P. Dayan, "Q-learning," <em>Machine Learning</em>, vol. 8, no. 3–4, pp. 279–292, 1992.</li>
+    <li id="ref-3">V. Mnih, K. Kavukcuoglu, D. Silver, <em>et al.</em>, "Human-level control through deep reinforcement learning," <em>Nature</em>, vol. 518, no. 7540, pp. 529–533, 2015.</li>
+    <li id="ref-4">V. Mnih, A. P. Badia, M. Mirza, <em>et al.</em>, "Asynchronous methods for deep reinforcement learning," in <em>Proc. 33rd Int. Conf. on Machine Learning (ICML)</em>, 2016, pp. 1928–1937.</li>
+    <li id="ref-5">R. J. Williams, "Simple statistical gradient-following algorithms for connectionist reinforcement learning," <em>Machine Learning</em>, vol. 8, no. 3–4, pp. 229–256, 1992.</li>
+    <li id="ref-6">J. Schulman, F. Wolski, P. Dhariwal, A. Radford, and O. Klimov, "Proximal policy optimization algorithms," <em>arXiv preprint arXiv:1707.06347</em>, 2017.</li>
+    <li id="ref-7">J. Schulman, P. Moritz, S. Levine, M. Jordan, and P. Abbeel, "High-dimensional continuous control using generalized advantage estimation," in <em>Proc. Int. Conf. on Learning Representations (ICLR)</em>, 2016.</li>
+    <li id="ref-8">V. R. Konda and J. N. Tsitsiklis, "Actor-critic algorithms," in <em>Advances in Neural Information Processing Systems (NeurIPS)</em>, vol. 12, 2000, pp. 1008–1014.</li>
+    <li id="ref-9">M. Tan, "Multi-agent reinforcement learning: Independent vs. cooperative agents," in <em>Proc. 10th Int. Conf. on Machine Learning</em>, 1993, pp. 330–337.</li>
+    <li id="ref-10">R. Lowe, Y. Wu, A. Tamar, J. Harb, P. Abbeel, and I. Mordatch, "Multi-agent actor-critic for mixed cooperative-competitive environments," in <em>Advances in Neural Information Processing Systems (NeurIPS)</em>, vol. 30, 2017.</li>
+    <li id="ref-11">J. Foerster, G. Farquhar, T. Afouras, N. Nardelli, and S. Whiteson, "Counterfactual multi-agent policy gradients," in <em>Proc. 32nd AAAI Conf. on Artificial Intelligence</em>, 2018, pp. 2974–2982.</li>
+    <li id="ref-12">P. Sunehag, G. Lever, A. Gruslys, <em>et al.</em>, "Value-decomposition networks for cooperative multi-agent learning based on team reward," in <em>Proc. 17th Int. Conf. on Autonomous Agents and Multiagent Systems (AAMAS)</em>, 2018, pp. 2085–2087.</li>
+    <li id="ref-13">T. Rashid, M. Samvelyan, C. Schroeder de Witt, G. Farquhar, J. Foerster, and S. Whiteson, "QMIX: Monotonic value function factorisation for deep multi-agent reinforcement learning," in <em>Proc. 35th Int. Conf. on Machine Learning (ICML)</em>, 2018, pp. 4295–4304.</li>
+    <li id="ref-14">C. Yu, A. Velu, E. Vinitsky, Y. Wang, A. Bayen, and Y. Wu, "The surprising effectiveness of PPO in cooperative multi-agent games," <em>arXiv preprint arXiv:2103.01955</em>, 2021.</li>
+    <li id="ref-15">L. Busoniu, R. Babuska, and B. De Schutter, "A comprehensive survey of multiagent reinforcement learning," <em>IEEE Trans. on Systems, Man, and Cybernetics, Part C</em>, vol. 38, no. 2, pp. 156–172, 2008.</li>
+    <li id="ref-16">P. Hernandez-Leal, B. Kartal, and M. E. Taylor, "A survey and critique of multiagent deep reinforcement learning," <em>Autonomous Agents and Multi-Agent Systems</em>, vol. 33, no. 6, pp. 750–797, 2019.</li>
+    <li id="ref-17">S. Gronauer and K. Diepold, "Multi-agent deep reinforcement learning: A survey," <em>Artificial Intelligence Review</em>, vol. 55, no. 2, pp. 895–943, 2022.</li>
+    <li id="ref-18">J. Z. Leibo, V. Zambaldi, M. Lanctot, J. Marecki, and T. Graepel, "Multi-agent reinforcement learning in sequential social dilemmas," in <em>Proc. 16th Int. Conf. on Autonomous Agents and Multiagent Systems (AAMAS)</em>, 2017, pp. 464–473.</li>
+    <li id="ref-19">G. Hardin, "The tragedy of the commons," <em>Science</em>, vol. 162, no. 3859, pp. 1243–1248, 1968.</li>
+    <li id="ref-20">H. Wei, N. Xu, H. Zhang, <em>et al.</em>, "CoLight: Learning network-level cooperation for traffic signal control," in <em>Proc. 28th ACM Int. Conf. on Information and Knowledge Management (CIKM)</em>, 2019, pp. 1913–1922.</li>
+    <li id="ref-21">P. Varaiya, "Max pressure control of a network of signalized intersections," <em>Transportation Research Part C</em>, vol. 36, pp. 177–195, 2013.</li>
+    <li id="ref-22">T. Chu, J. Wang, L. Codecà, and Z. Li, "Multi-agent deep reinforcement learning for large-scale traffic signal control," <em>IEEE Trans. on Intelligent Transportation Systems</em>, vol. 21, no. 3, pp. 1086–1095, 2020.</li>
+    <li id="ref-23">W. Genders and S. Razavi, "Using a deep reinforcement learning agent for traffic signal control," <em>arXiv preprint arXiv:1611.01142</em>, 2016.</li>
+    <li id="ref-24">E. van der Pol and F. A. Oliehoek, "Coordinated deep reinforcement learners for traffic light control," in <em>NeurIPS Workshop on Learning, Inference and Control of Multi-Agent Systems</em>, 2016.</li>
+    <li id="ref-25">P. A. Lopez, M. Behrisch, L. Bieker-Walz, <em>et al.</em>, "Microscopic traffic simulation using SUMO," in <em>Proc. 21st IEEE Int. Conf. on Intelligent Transportation Systems (ITSC)</em>, 2018, pp. 2575–2582.</li>
+    <li id="ref-26">E. Liang, R. Liaw, R. Nishihara, <em>et al.</em>, "RLlib: Abstractions for distributed reinforcement learning," in <em>Proc. 35th Int. Conf. on Machine Learning (ICML)</em>, 2018, pp. 3053–3062.</li>
+    <li id="ref-27">A. Paszke, S. Gross, F. Massa, <em>et al.</em>, "PyTorch: An imperative style, high-performance deep learning library," in <em>Advances in Neural Information Processing Systems (NeurIPS)</em>, vol. 32, 2019, pp. 8024–8035.</li>
+  </ol>
+</section>
+
+</main>
+</body>
+</html>

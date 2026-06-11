@@ -1,0 +1,251 @@
+/* =====================================================================
+   Dissertation stylesheet — screen + print (A4)
+   Emergent Social Behaviour & Dilemmas in MARL — Ahmed Wael Elsisi
+   ===================================================================== */
+
+:root {
+  --ink:        #1a1a1a;
+  --muted:      #555;
+  --accent:     #1f4e79;   /* deep blue  */
+  --accent2:    #b8341b;   /* brick red  */
+  --rule:       #cdd3da;
+  --soft:       #f4f6f8;
+  --band:       #eef3f8;
+  --maxw:       760px;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 17px; }
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background: #e9ecef;
+  font-family: "Georgia", "Cambria", "Times New Roman", serif;
+  line-height: 1.6;
+}
+
+/* The "paper" */
+main {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  background: #fff;
+  padding: 64px 72px 96px;
+  box-shadow: 0 0 18px rgba(0,0,0,.12);
+}
+
+/* ------------------------------- Typography ------------------------- */
+p { margin: 0 0 0.85em; text-align: justify; hyphens: auto; }
+
+h1, h2, h3, h4 {
+  font-family: "Helvetica Neue", "Arial", sans-serif;
+  color: var(--accent);
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.chapter > h1 {
+  font-size: 1.9rem;
+  margin: 0 0 0.2em;
+  padding-bottom: 0.25em;
+}
+.chapter-num {
+  display: block;
+  font-size: 0.8rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent2);
+  margin-bottom: 0.4em;
+  font-weight: 700;
+}
+h2 { font-size: 1.3rem;  margin: 1.8em 0 0.5em; }
+h3 { font-size: 1.08rem; margin: 1.4em 0 0.4em; color: #2a2a2a; }
+h4 { font-size: 0.98rem; margin: 1.2em 0 0.3em; color: #333; font-style: italic; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+em  { font-style: italic; }
+strong { font-weight: 700; }
+
+ul, ol { margin: 0 0 0.9em; padding-left: 1.5em; }
+li { margin: 0.25em 0; text-align: justify; }
+
+code, .mono {
+  font-family: "Consolas", "SFMono-Regular", monospace;
+  font-size: 0.86em;
+  background: var(--soft);
+  padding: 0.05em 0.35em;
+  border-radius: 3px;
+}
+
+/* ------------------------------- Title page ------------------------- */
+.titlepage {
+  min-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0.4em;
+}
+.titlepage .crest {
+  width: 96px; height: 96px; margin-bottom: 1.2em;
+}
+.titlepage h1 {
+  font-size: 2.1rem; color: var(--accent); margin: 0.2em 0 0.1em; max-width: 18em;
+}
+.titlepage .sub  { color: var(--muted); font-size: 1.05rem; }
+.titlepage .by   { margin-top: 1.6em; font-size: 1.15rem; }
+.titlepage .name { font-weight: 700; font-size: 1.25rem; color: var(--ink); }
+.titlepage .deg  { max-width: 30em; color: var(--muted); margin-top: 1.4em; font-size: 0.95rem; }
+.titlepage .foot { margin-top: 2.2em; color: var(--muted); font-size: 0.95rem; }
+
+/* ------------------------------- Abstract --------------------------- */
+.abstract {
+  background: var(--soft);
+  border-left: 4px solid var(--accent);
+  padding: 1.2em 1.5em;
+  margin: 1em 0 0;
+}
+.abstract h1 { font-size: 1.5rem; margin-top: 0; }
+.keywords { font-size: 0.9rem; color: var(--muted); margin-top: 1em; }
+
+/* ------------------------------- TOC -------------------------------- */
+.toc h1 { font-size: 1.6rem; }
+.toc ol { list-style: none; padding-left: 0; counter-reset: tocnum; }
+.toc > ol > li { margin: 0.35em 0; font-weight: 600; }
+.toc ol ol { padding-left: 1.4em; font-weight: 400; font-size: 0.94rem; }
+.toc a { display: flex; justify-content: space-between; gap: 0.5em; color: var(--ink); }
+.toc a .lead { flex: 1; border-bottom: 1px dotted var(--rule); margin: 0 0.4em 0.2em; }
+.toc .pg { color: var(--muted); }
+
+/* ------------------------------- Figures ---------------------------- */
+figure {
+  margin: 1.6em 0;
+  text-align: center;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+figure img,
+figure svg {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: #fff;
+}
+figure svg { border: none; }
+figcaption {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-top: 0.6em;
+  text-align: left;
+  line-height: 1.45;
+}
+figcaption b { color: var(--accent2); }
+.fig-narrow img, .fig-narrow svg { max-width: 70%; }
+.svg-fig { width: 100%; }
+
+/* ------------------------------- Tables ----------------------------- */
+.tbl-wrap { margin: 1.6em 0; break-inside: avoid; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 0.84rem;
+}
+caption {
+  caption-side: top;
+  text-align: left;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-bottom: 0.5em;
+  line-height: 1.45;
+}
+caption b { color: var(--accent2); }
+th, td { padding: 0.45em 0.7em; text-align: left; }
+thead th {
+  border-top: 2px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+  color: var(--ink);
+}
+tbody tr { border-bottom: 1px solid var(--rule); }
+tbody tr:last-child { border-bottom: 2px solid var(--ink); }
+td.num, th.num { text-align: center; font-variant-numeric: tabular-nums; }
+tr.hi td { background: var(--band); font-weight: 700; }
+.sig { color: var(--accent2); font-weight: 700; }
+
+/* ------------------------------- Callouts --------------------------- */
+.callout {
+  background: var(--band);
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--accent2);
+  padding: 0.9em 1.2em;
+  margin: 1.4em 0;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.95rem;
+}
+.callout .lab {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--accent2); font-weight: 700; display: block; margin-bottom: 0.3em;
+}
+
+/* Equations */
+.eq {
+  text-align: center;
+  font-family: "Cambria Math", "Georgia", serif;
+  font-style: italic;
+  margin: 1.1em 0;
+  font-size: 1.05rem;
+}
+.eq .num { float: right; font-style: normal; color: var(--muted); font-size: 0.9rem; }
+
+/* ------------------------------- References ------------------------- */
+.refs ol { counter-reset: ref; list-style: none; padding-left: 0; }
+.refs li {
+  counter-increment: ref;
+  position: relative;
+  padding-left: 2.6em;
+  margin: 0.5em 0;
+  font-size: 0.9rem;
+  text-align: left;
+}
+.refs li::before {
+  content: "[" counter(ref) "]";
+  position: absolute; left: 0; top: 0;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  color: var(--accent); font-weight: 700;
+}
+cite { font-style: normal; color: var(--accent); font-weight: 600; }
+
+/* ------------------------------- Misc ------------------------------- */
+hr.sec { border: none; border-top: 1px solid var(--rule); margin: 2.2em 0; }
+.lead-para { font-size: 1.05rem; color: #333; }
+.small { font-size: 0.86rem; color: var(--muted); }
+
+/* ============================ PRINT (A4) ============================= */
+@media print {
+  @page {
+    size: A4;
+    margin: 22mm 20mm;
+  }
+  html { font-size: 11.5pt; }
+  body { background: #fff; }
+  main {
+    max-width: none; width: auto;
+    margin: 0; padding: 0;
+    box-shadow: none;
+  }
+  .chapter { break-before: page; page-break-before: always; }
+  .frontbreak { break-before: page; page-break-before: always; }
+  .titlepage { min-height: 92vh; break-after: page; }
+  figure, .tbl-wrap, .callout { break-inside: avoid; page-break-inside: avoid; }
+  h1, h2, h3, h4 { break-after: avoid; page-break-after: avoid; }
+  p { orphans: 3; widows: 3; }
+  a { color: var(--ink); }
+  .no-print { display: none !important; }
+}

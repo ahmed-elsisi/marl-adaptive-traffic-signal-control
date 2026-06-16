@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Defense — Emergent Social Behaviour & Dilemmas in MARL</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="stage">
+
+<!-- ======================= 1. TITLE ======================= -->
+<section class="slide slide--title active">
+  <div class="leftbar"></div>
+  <img class="t-logo" src="assets/bue-logo.png" alt="The British University in Egypt">
+  <div class="t-squares"><span></span><span></span><span></span></div>
+  <div class="t-wrap">
+    <h1 class="t-title">Emergent Social Behaviour &amp;<br>Dilemmas in Multi-Agent<br>Reinforcement Learning</h1>
+  </div>
+  <div class="t-people">
+    <div><b>Presented by:</b> Ahmed Wael Elsisi</div>
+    <div><b>Supervisor:</b> Dr. Randa Mohamed</div>
+    <div style="margin-top:6px;color:var(--muted)">Student ID: 214647</div>
+  </div>
+  <div class="t-meta">
+    <div class="t-bar"><i></i><i></i><i></i></div>
+    <div class="date">Final Defense &nbsp;·&nbsp; June 2026</div>
+  </div>
+  <div class="t-foot">Graduation Research Project</div>
+  <aside class="notes">
+    <h5>Opening (~30s)</h5>
+    <ul>
+      <li>Good morning. I'm Ahmed Elsisi; this is my graduation project supervised by Dr. Randa Mohamed.</li>
+      <li>One-line hook: "When does an explicit coordination mechanism actually help in multi-agent learning — and when do independent learners do just as well?"</li>
+      <li>Promise a clear answer and a genuine surprise at the end.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 2. OVERVIEW ======================= -->
+<section class="slide">
+  <h2 class="eyebrow">Agenda</h2>
+  <h1 class="title">Overview</h1>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <div class="numlist" style="grid-template-columns:1fr 1fr; column-gap:80px; margin-top:34px;">
+    <div class="numrow"><div class="n">01</div><div class="t"><b>Introduction</b></div></div>
+    <div class="numrow"><div class="n">05</div><div class="t"><b>Methodology</b></div></div>
+    <div class="numrow"><div class="n">02</div><div class="t"><b>Problem Statement</b></div></div>
+    <div class="numrow"><div class="n">06</div><div class="t"><b>Results &amp; Narrative</b></div></div>
+    <div class="numrow"><div class="n">03</div><div class="t"><b>Research Objectives</b></div></div>
+    <div class="numrow"><div class="n">07</div><div class="t"><b>Challenges &amp; Future Work</b></div></div>
+    <div class="numrow"><div class="n">04</div><div class="t"><b>Theoretical Framework</b></div></div>
+    <div class="numrow"><div class="n">08</div><div class="t"><b>Conclusion &amp; Q&amp;A</b></div></div>
+  </div>
+  <aside class="notes">
+    <h5>Roadmap (~20s)</h5>
+    <ul><li>Quick map of the talk. Spend most time on methodology and results.</li>
+    <li>Flag: the results section contains the key finding — ask them to hold questions for the end.</li></ul>
+  </aside>
+</section>
+
+<!-- ======================= 3. INTRODUCTION ======================= -->
+<section class="slide">
+  <div class="cols c12" style="height:100%;">
+    <div class="center-y">
+      <h1 class="title">Introduction</h1>
+      <h3 class="subtitle">Background &amp; Motivation</h3>
+      <div class="bar"><i></i><i></i><i></i></div>
+      <ul class="clean" style="margin-top:26px;">
+        <li><b>Multi-agent systems</b> are everywhere — traffic, power grids, robotics, markets, ecosystems.</li>
+        <li><b>Reinforcement learning</b> lets agents learn by interaction, with no labelled dataset.</li>
+        <li>When many learning agents interact, <b>social behaviour emerges</b> on its own.</li>
+        <li>That emergence can be <b style="color:var(--ok)">beneficial</b> (cooperation) or <b style="color:var(--warn)">catastrophic</b> (mutual interference, gridlock, resource collapse).</li>
+      </ul>
+    </div>
+    <div class="fit">
+      <figure>
+        <img src="assets/grid_2x2.png" alt="2x2 traffic grid; each intersection is an agent" style="max-height:460px;max-width:100%;">
+        <figcaption class="figcap">Traffic grid — each intersection is one learning agent.</figcaption>
+      </figure>
+    </div>
+  </div>
+  <aside class="notes">
+    <h5>Introduction (~1.5 min)</h5>
+    <ul>
+      <li>Motivate breadth: anything with many autonomous decision-makers is a multi-agent system.</li>
+      <li>RL = learning by trial and error from a reward signal — no supervisor telling the right answer.</li>
+      <li>Key tension to plant now: collective outcomes are <em>emergent</em> and not guaranteed to be good.</li>
+      <li>Point at the figure: our concrete testbed is a city grid where each intersection is an agent.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 4. PROBLEM STATEMENT ======================= -->
+<section class="slide">
+  <h1 class="title">Problem Statement</h1>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <div class="numlist" style="margin-top:30px;">
+    <div class="numrow"><div class="n">01</div><div class="t"><b>Single-agent RL doesn't scale.</b> Treating a whole city as one agent makes the state and action spaces blow up exponentially — infeasible.</div></div>
+    <div class="numrow"><div class="n">02</div><div class="t"><b>Heuristics are effective but not optimal.</b> Rule-based controllers (fixed-time, max-pressure) are robust, yet cannot adapt to changing demand.</div></div>
+    <div class="numrow"><div class="n">03</div><div class="t"><b>MARL introduces non-stationarity.</b> Every agent is a moving target for the others, so learning becomes unstable.</div></div>
+    <div class="numrow"><div class="n">04</div><div class="t"><b>Emergent social behaviour is under-explored.</b> <em>When</em> coordination machinery actually helps — versus when independent learners suffice — is not well understood.</div></div>
+  </div>
+  <aside class="notes">
+    <h5>Problem (~1.5 min)</h5>
+    <ul>
+      <li>Walk the four points top-to-bottom; they motivate every design choice later.</li>
+      <li>#1 → why we go multi-agent at all. #2 → why we still need learning. #3 → the core MARL difficulty. #4 → the gap this thesis targets.</li>
+      <li>Land on #4: this is the question the whole project is built to answer.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 5. RESEARCH OBJECTIVES ======================= -->
+<section class="slide">
+  <div class="cols c21" style="height:100%;">
+    <div class="center-y">
+      <h1 class="title">Research Objectives</h1>
+      <div class="bar"><i></i><i></i><i></i></div>
+      <p style="margin-top:20px;max-width:560px;">Four concrete questions, each answered later by an experiment:</p>
+      <ul class="clean" style="margin-top:6px;">
+        <li><b>Q1.</b> Does a learned MARL controller beat the heuristic baselines under a <em>fair</em> comparison?</li>
+        <li><b>Q2.</b> Does dropping coordination — independent IPPO — actually degrade performance vs MAPPO?</li>
+        <li><b>Q3.</b> Is the <em>value of coordination</em> a function of network scale?</li>
+        <li><b>Q4.</b> Is our compact MAPPO enough, or does it need the larger published recipe?</li>
+      </ul>
+    </div>
+    <div class="center-y">
+      <div class="card">
+        <h4>Primary environment</h4>
+        <p>Traffic signal control — an <b>inherently cooperative</b> setting that sits at the pure-coordination end of the spectrum, giving a clean baseline for measuring coordination.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    <h5>Objectives (~1.5 min)</h5>
+    <ul>
+      <li>Frame these as falsifiable questions, not vague aims — each maps to a results slide (I'll tick them off).</li>
+      <li>Q1 = sanity/value of learning. Q2 = the headline question. Q3 = the interpretation. Q4 = fidelity guard against a strawman.</li>
+      <li>Explain "pure coordination": in traffic there's nothing to gain by defecting, so it's the perfect zero-point to measure coordination value.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 6. THEORY: RL ======================= -->
+<section class="slide">
+  <div class="squares"><span></span><span></span><span></span></div>
+  <h2 class="eyebrow">Theoretical Framework</h2>
+  <h1 class="title sm">Reinforcement Learning</h1>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <div class="cols c2" style="margin-top:30px;align-items:center;">
+    <div class="fit">
+      <svg viewBox="0 0 520 300" width="100%" style="max-height:330px">
+        <rect x="160" y="20" width="200" height="64" rx="10" fill="#fff" stroke="#26333A" stroke-width="2.5"/>
+        <text x="260" y="59" text-anchor="middle" font-size="22" fill="#26333A" font-family="Segoe UI">AGENT</text>
+        <rect x="150" y="216" width="220" height="64" rx="10" fill="#fff" stroke="#26333A" stroke-width="2.5"/>
+        <text x="260" y="255" text-anchor="middle" font-size="20" fill="#26333A" font-family="Segoe UI">ENVIRONMENT</text>
+        <!-- action arrow (down right) -->
+        <path d="M360 52 H440 V248 H372" fill="none" stroke="#C2A878" stroke-width="3" marker-end="url(#ah)"/>
+        <text x="452" y="150" font-size="16" fill="#8a6d3b" font-family="Segoe UI">Action Aₜ</text>
+        <!-- state+reward arrows (up left) -->
+        <path d="M150 240 H70 V52 H158" fill="none" stroke="#8B9A9B" stroke-width="3" marker-end="url(#ah2)"/>
+        <text x="14" y="150" font-size="16" fill="#5f7378" font-family="Segoe UI">State Sₜ</text>
+        <text x="14" y="172" font-size="16" fill="#5f7378" font-family="Segoe UI">Reward Rₜ</text>
+        <defs>
+          <marker id="ah" markerWidth="9" markerHeight="9" refX="6" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#C2A878"/></marker>
+          <marker id="ah2" markerWidth="9" markerHeight="9" refX="6" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#8B9A9B"/></marker>
+        </defs>
+      </svg>
+    </div>
+    <ul class="clean">
+      <li>The <b>agent</b> observes a <b>state</b> and chooses an <b>action</b>.</li>
+      <li>The environment responds with a new state and a <b>reward</b>.</li>
+      <li>The agent's goal: a <b>policy</b> that maximizes long-run cumulative reward.</li>
+      <li>No dataset — learning comes entirely from this interaction loop.</li>
+    </ul>
+  </div>
+  <aside class="notes">
+    <h5>RL theory (~1 min)</h5>
+    <ul><li>Keep it crisp — this is the one slide of textbook RL (Sutton &amp; Barto loop).</li>
+    <li>Emphasise "maximize long-run reward," not immediate reward — sets up discounting and credit assignment.</li></ul>
+  </aside>
+</section>
+
+<!-- ======================= 7. THEORY: MARL ======================= -->
+<section class="slide">
+  <div class="squares"><span></span><span></span><span></span></div>
+  <h2 class="eyebrow">Theoretical Framework</h2>
+  <h1 class="title sm">Multi-Agent RL</h1>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <div class="cols c12" style="margin-top:28px;align-items:center;">
+    <ul class="clean">
+      <li><b>Non-stationarity.</b> Each agent treats the others as part of the environment — but they are <em>also learning</em>, so the environment keeps shifting.</li>
+      <li>This breaks the Markov assumption and makes naive learning unstable.</li>
+      <li><b>Credit assignment.</b> With a shared outcome, which agent earned the reward?</li>
+      <li>Agents may <b>free-ride</b> on others' effort.</li>
+    </ul>
+    <div class="fit">
+      <svg viewBox="0 0 420 300" width="100%" style="max-height:300px">
+        <rect x="40" y="40" width="120" height="70" rx="10" fill="#fff" stroke="#26333A" stroke-width="2.5"/>
+        <text x="100" y="82" text-anchor="middle" font-size="18" fill="#26333A" font-family="Segoe UI">Agent i</text>
+        <rect x="260" y="40" width="120" height="70" rx="10" fill="#fff" stroke="#26333A" stroke-width="2.5"/>
+        <text x="320" y="82" text-anchor="middle" font-size="18" fill="#26333A" font-family="Segoe UI">Agent j</text>
+        <rect x="40" y="210" width="340" height="60" rx="10" fill="#EDEAE0" stroke="#8B9A9B" stroke-width="2.5"/>
+        <text x="210" y="247" text-anchor="middle" font-size="18" fill="#26333A" font-family="Segoe UI">Shared Environment</text>
+        <path d="M100 110 V210" stroke="#C2A878" stroke-width="3" marker-end="url(#m1)"/>
+        <path d="M320 110 V210" stroke="#C2A878" stroke-width="3" marker-end="url(#m1)"/>
+        <path d="M150 240 H270" stroke="#8B9A9B" stroke-width="2.5" stroke-dasharray="6 5"/>
+        <text x="210" y="160" text-anchor="middle" font-size="14" fill="#5f7378" font-family="Segoe UI">each affects the other</text>
+        <defs><marker id="m1" markerWidth="9" markerHeight="9" refX="6" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#C2A878"/></marker></defs>
+      </svg>
+    </div>
+  </div>
+  <aside class="notes">
+    <h5>MARL theory (~1 min)</h5>
+    <ul><li>Non-stationarity is THE reason multi-agent learning is hard — say it plainly.</li>
+    <li>Credit assignment + free-riding motivate the centralized critic we introduce in methodology.</li></ul>
+  </aside>
+</section>
+
+<!-- ======================= 8. THEORY: SOCIAL DILEMMAS ======================= -->
+<section class="slide">
+  <div class="squares"><span></span><span></span><span></span></div>
+  <h2 class="eyebrow">Theoretical Framework</h2>
+  <h1 class="title sm">Social Dilemmas</h1>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <div class="cols c12" style="margin-top:24px;align-items:center;">
+    <div>
+      <p style="margin-top:0">A <b>social dilemma</b>: individually rational choices lead to a collectively worse outcome. Classic example — the <b>Prisoner's Dilemma</b>: defecting pays off short-term, but mutual cooperation is better if both cooperate.</p>
+      <table class="cmp" style="margin-top:6px;font-size:16px;">
+        <tr><th></th><th>B cooperates</th><th>B defects</th></tr>
+        <tr><td><b>A cooperates</b></td><td class="ns">Both: 2 yrs</td><td class="ns">A: 5 · B: 0</td></tr>
+        <tr><td><b>A defects</b></td><td class="ns">A: 0 · B: 5</td><td class="ns">Both: 4 yrs</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="spectrum">
+        <div class="mark"><span class="pin">Traffic (this work)</span></div>
+        <div class="track" style="margin-top:18px;"></div>
+        <div class="ends"><span><b>Pure coordination</b><br>incentives aligned</span><span style="text-align:right"><b>Social dilemma</b><br>defection tempting</span></div>
+      </div>
+      <p style="font-size:18px;color:var(--muted);margin-top:22px;">Traffic sits at the <b>pure-coordination</b> end: there is nothing to gain by defecting — the perfect zero-point to measure the value of coordination.</p>
+    </div>
+  </div>
+  <aside class="notes">
+    <h5>Social dilemmas + spectrum (~1 min)</h5>
+    <ul>
+      <li>The spectrum is the conceptual backbone of the whole project — pure coordination ↔ social dilemma.</li>
+      <li>Be explicit: we deliberately picked the easy (coordination) end first, to establish a clean baseline. The dilemma end is future work.</li>
+      <li>This framing makes the later "coordination value ≈ 0" result interpretable rather than disappointing.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 9. METHODOLOGY: ENVIRONMENT ======================= -->
+<section class="slide">
+  <div class="cols c12" style="height:100%;">
+    <div class="center-y">
+      <h2 class="eyebrow">Methodology</h2>
+      <h1 class="title sm">Environment</h1>
+      <div class="bar"><i></i><i></i><i></i></div>
+      <ul class="clean" style="margin-top:22px;">
+        <li><b>2×2 grid, 4 intersections</b> — one agent per intersection — in <b>SUMO</b> via TraCI + Ray RLlib.</li>
+        <li>150 m inner roads, 100 m entries; 3 lanes each.</li>
+        <li>Episode = <b>3600 s</b>, decisions every <b>5 s</b> (≤720 per agent).</li>
+        <li>Realistic demand: <b>light → rush hour → light</b>.</li>
+      </ul>
+      <div class="row" style="margin-top:22px;gap:8px;">
+        <div style="flex:1;height:14px;background:var(--slate);border-radius:3px;"></div>
+        <div style="flex:3;height:14px;background:var(--warn);border-radius:3px;"></div>
+        <div style="flex:1;height:14px;background:var(--slate);border-radius:3px;"></div>
+      </div>
+      <div class="row" style="font-size:13px;color:var(--muted);justify-content:space-between;margin-top:4px;">
+        <span>0–600 s light</span><span>600–2400 s rush</span><span>2400–3600 s light</span>
+      </div>
+    </div>
+    <div class="fit">
+      <figure><img src="assets/grid_2x2.png" alt="2x2 SUMO grid" style="max-height:470px;max-width:100%;">
+      <figcaption class="figcap">J1–J4: four signalized intersections = four agents.</figcaption></figure>
+    </div>
+  </div>
+  <aside class="notes">
+    <h5>Environment (~1 min)</h5>
+    <ul><li>Stress this is a realistic micro-simulator (SUMO), not a toy gridworld.</li>
+    <li>The demand profile bar matters: the rush hour is where a controller is really tested.</li></ul>
+  </aside>
+</section>
+
+<!-- ======================= 10. METHODOLOGY: INTERSECTION & LANES ======================= -->
+<section class="slide">
+  <h2 class="eyebrow">Methodology</h2>
+  <h1 class="title sm">Intersection &amp; Action Design</h1>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <div class="cols" style="grid-template-columns:1fr 1fr 1fr;margin-top:24px;align-items:center;gap:28px;">
+    <div class="fit"><img src="assets/intersection.png" alt="intersection lanes" style="max-height:300px;border:1px solid var(--line);"></div>
+    <div>
+      <ul class="clean">
+        <li><b>12 lanes</b> per intersection with <b>strict directions</b>: lane 0 right, lane 1 straight, lane 2 left.</li>
+        <li>Strict assignment makes the environment cleaner, so agents learn <b>faster</b>.</li>
+      </ul>
+      <img src="assets/lane_dirs.png" alt="lane directions 0/1/2" style="width:100%;margin-top:10px;border:1px solid var(--line);">
+    </div>
+    <div>
+      <div class="card" style="border-color:var(--slate);">
+        <h4>4 actions per agent</h4>
+        <p style="line-height:1.9;">
+        <b>a₁</b> · NS straight<br>
+        <b>a₂</b> · EW straight<br>
+        <b>a₃</b> · EW left<br>
+        <b>a₄</b> · NS left</p>
+        <p style="margin-top:10px;color:var(--muted);font-size:16px;">Right turns permissive in all phases; 3 s all-red safety clearance on every switch.</p>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    <h5>Intersection &amp; actions (~1 min)</h5>
+    <ul>
+      <li>Why strict lanes: removes ambiguity, shrinks what the agent must learn — faster convergence.</li>
+      <li>Only 4 green phases as actions; yellows are automatic.</li>
+      <li>Flag the 3 s all-red clearance now — it becomes the crux of the fair-comparison result later.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 11. METHODOLOGY: MAPPO & WHY ======================= -->
+<section class="slide">
+  <h2 class="eyebrow">Methodology</h2>
+  <h1 class="title sm">Algorithm — MAPPO &amp; Why</h1>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <div class="cols c21" style="margin-top:22px;align-items:center;">
+    <ul class="clean">
+      <li><b>MAPPO</b> = Multi-Agent PPO. A <b>centralized critic</b> sees the global state during training to tame <b>non-stationarity</b>.</li>
+      <li>It also addresses <b>credit assignment</b> — disentangling each agent's contribution to the shared reward.</li>
+      <li><b>CTDE</b>: centralized critic <em>only</em> at training; decentralized actors at deployment (each uses local obs).</li>
+      <li><b>Shared policy</b> — agents are homogeneous, so one network is reused across all four (efficient, more data per update).</li>
+    </ul>
+    <div class="fit"><figure><img src="assets/net_arch.png" alt="actor critic architecture" style="max-height:300px;">
+      <figcaption class="figcap">Decentralized actor (local 70-dim) · centralized critic (global 280-dim).</figcaption></figure></div>
+  </div>
+  <aside class="notes">
+    <h5>MAPPO &amp; why (~1.5 min)</h5>
+    <ul>
+      <li>This slide answers "why this algorithm": each bullet maps to a problem from the MARL theory slide.</li>
+      <li>CTDE is the key idea — say the "coach sees everything in practice; players act alone in the game" analogy.</li>
+      <li>Point at the diagram: actor input 70 (local), critic input 280 (all four agents) — that asymmetry IS the cooperation mechanism.</li>
+      <li>Foreshadow: IPPO will keep the actor identical but remove the centralized critic + neighbour reward.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 12. METHODOLOGY: OBS & REWARD ======================= -->
+<section class="slide">
+  <h2 class="eyebrow">Methodology</h2>
+  <h1 class="title sm">Observations &amp; Reward</h1>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <div class="cols c12" style="margin-top:22px;align-items:center;">
+    <div class="row" style="align-items:flex-start;gap:26px;">
+      <div class="obstack">
+        <div class="seg dir">Elapsed phase + min-green (2)</div>
+        <div class="seg dir">Current direction (2)</div>
+        <div class="seg prs">Movement pressures &amp; derivatives (12)</div>
+        <div class="seg que">Queue lengths (12)</div>
+        <div class="seg nbr">Neighbours' information (42)<br><span style="font-weight:400;font-size:13px;">γₛ = 0.9 spatial discount</span></div>
+      </div>
+      <div style="font-size:16px;color:var(--muted);">
+        <p style="margin:0 0 8px;"><b style="font-size:30px;color:var(--ink);font-weight:300;">70</b><br>dimensions / agent</p>
+        <p>28 <b>local</b> + 42 <b>neighbour</b> features. Spatial discounting weights nearer intersections more.</p>
+      </div>
+    </div>
+    <div class="center-y">
+      <p style="margin-top:0;">Five-component reward (config v2):</p>
+      <div class="eq">r<sub>t</sub> = <span class="neg">−1.0 W</span> <span class="neg">−0.25 Q</span> <span class="pos">+0.1 T</span> <span class="neg">−0.4 P</span> <span class="neg">−0.4 N</span></div>
+      <ul class="clean" style="margin-top:16px;font-size:18px;">
+        <li><b>W</b> waiting time · <b>Q</b> queue · <b>T</b> throughput (shared)</li>
+        <li><b>P</b> local pressure · <b>N</b> neighbour pressure — the <em>only</em> explicit coordination term.</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="notes">
+    <h5>Obs &amp; reward (~1 min)</h5>
+    <ul>
+      <li>Highlight the neighbour block (42 of 70 dims) and the N term — together they are what makes MAPPO "cooperative."</li>
+      <li>Reward is dominated by waiting time (weight 1.0); the rest are shaping terms.</li>
+      <li>Key line: "N is the single lever that distinguishes MAPPO from IPPO." Set up the controlled comparison.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 13. METHODOLOGY: COMPARATORS & PROTOCOL ======================= -->
+<section class="slide">
+  <h2 class="eyebrow">Methodology</h2>
+  <h1 class="title sm">Comparators &amp; Fair Protocol</h1>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <div class="cols c12" style="margin-top:20px;align-items:start;">
+    <div>
+      <table class="cmp">
+        <tr><th>Design choice</th><th>MAPPO</th><th>IPPO</th></tr>
+        <tr><td>Critic</td><td>Centralized (280)</td><td>Decentralized (70)</td></tr>
+        <tr><td>Neighbour reward N</td><td>active (−0.4)</td><td>off (0.0)</td></tr>
+        <tr><td>Actor / hyperparams</td><td colspan="2" style="text-align:center;color:var(--ok);font-weight:700;">identical</td></tr>
+        <tr><td>Parameter sharing</td><td colspan="2" style="text-align:center;color:var(--ok);font-weight:700;">identical</td></tr>
+      </table>
+      <p style="font-size:17px;color:var(--muted);margin-top:12px;">MAPPO &amp; IPPO differ <b>only</b> in the two choices that define "cooperative" vs "independent." Plus a <b>paper-baseline</b> (Yu 2021, 512×512) as a fidelity check.</p>
+    </div>
+    <div class="center-y">
+      <div class="callout warn"><b>The fair-evaluation key.</b> Learned agents always pay a <b>3 s all-red clearance</b> per switch. The heuristics, by default, switched instantly — a hidden advantage. We charge <b>every</b> controller the same 3 s.</div>
+      <ul class="clean" style="margin-top:18px;font-size:18px;">
+        <li>Metrics: avg waiting time, halting, completed trips, phase switches.</li>
+        <li>Evaluated over <b>5 seeds (42–46)</b>; differences tested with Welch's <i>t</i>-test.</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="notes">
+    <h5>Comparators &amp; protocol (~1.5 min)</h5>
+    <ul>
+      <li>Stress the controlled design: MAPPO vs IPPO is a clean two-variable contrast, not a confounded comparison.</li>
+      <li>The clearance point is a methodological contribution — without it the baseline comparison is unfair. Set it up here; pay it off on the results slide.</li>
+      <li>Mention statistics up front: 5 seeds + Welch t-test, so "no difference" claims are principled.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 14. RESULTS: TRAINING ======================= -->
+<section class="slide">
+  <h2 class="eyebrow">Results &amp; Narrative · 1 of 5</h2>
+  <h1 class="title sm">MAPPO Trains Stably</h1>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <div class="cols c2" style="margin-top:18px;align-items:center;">
+    <figure class="fit"><img src="assets/train_reward.png" alt="training reward curve" style="max-height:330px;"></figure>
+    <div class="center-y">
+      <img src="assets/train_kl_explvar.png" alt="KL and explained variance" style="max-width:100%;max-height:210px;object-fit:contain;">
+      <div class="stats">
+        <div class="stat"><div class="v">−2757 → −49.8</div><div class="k">reward (init → converged)</div></div>
+        <div class="stat"><div class="v">0.907</div><div class="k">critic explained variance</div></div>
+        <div class="stat"><div class="v">0.0034</div><div class="k">avg KL — stable updates</div></div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    <h5>Training (~1 min)</h5>
+    <ul>
+      <li>First establish the learner works: smooth convergence, no value collapse, accurate critic (expl-var ~0.91), tiny KL.</li>
+      <li>This licenses everything downstream — the comparisons are between properly-trained agents.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 15. RESULTS: FAIR BASELINES (Q1) ======================= -->
+<section class="slide">
+  <h2 class="eyebrow">Results &amp; Narrative · 2 of 5</h2>
+  <h1 class="title sm">Beating the Heuristics — Fairly</h1>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <div class="cols c12" style="margin-top:16px;align-items:center;">
+    <figure class="fit"><img src="assets/fair_bars.png" alt="all controllers under matched 3s clearance" style="max-height:380px;"></figure>
+    <div class="center-y">
+      <div class="callout warn" style="margin-bottom:16px;"><b>The catch.</b> Charge max-pressure the same 3 s clearance and its wait jumps <b>8.15 → 21.63 s</b>. Its apparent edge was an <em>evaluation artefact</em>, not real.</div>
+      <ul class="clean" style="font-size:19px;">
+        <li>Under matched clearance: MAPPO <b>9.92 s</b> beats Max-Pressure (<b>21.6 s</b>, ~2×) and Fixed-Time (<b>47.0 s</b>, ~5×).</li>
+      </ul>
+      <div class="qcheck">✓ Q1 — learned control wins under a fair test</div>
+    </div>
+  </div>
+  <aside class="notes">
+    <h5>Fair baselines — Q1 (~1.5 min)</h5>
+    <ul>
+      <li>This is the methodological highlight. Tell it as a correction: the interim's near-tie with max-pressure came from an <em>unfair</em> zero-clearance setup.</li>
+      <li>The clincher is within-controller: the <em>same</em> max-pressure triples (8.15→21.63) once charged the clearance the RL agents always paid.</li>
+      <li>Conclusion: under a fair test the learned controllers win decisively. Tick Q1.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 16. RESULTS: FIDELITY (Q4) ======================= -->
+<section class="slide">
+  <h2 class="eyebrow">Results &amp; Narrative · 3 of 5</h2>
+  <h1 class="title sm">Not a Strawman</h1>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <div class="cols c12" style="margin-top:16px;align-items:center;">
+    <figure class="fit"><img src="assets/model_size.png" alt="model size comparison" style="max-height:330px;"></figure>
+    <div class="center-y">
+      <ul class="clean">
+        <li>Our compact MAPPO (256-wide actor) vs the published recipe (Yu 2021, 512×512).</li>
+        <li>Avg wait <b>9.92 s</b> vs <b>10.21 s</b> — statistically tied (<b>p = 0.39</b>).</li>
+        <li>Same result with <b>~45% fewer parameters</b>: our implementation is faithful and competitive.</li>
+      </ul>
+      <div class="qcheck">✓ Q4 — compact MAPPO is sufficient</div>
+    </div>
+  </div>
+  <aside class="notes">
+    <h5>Fidelity — Q4 (~45s)</h5>
+    <ul>
+      <li>Purpose: pre-empt the obvious objection — "maybe your MAPPO is just weak."</li>
+      <li>It matches the canonical recipe with far fewer params. So any later failure to beat IPPO can't be blamed on a weak MAPPO. Tick Q4.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 17. RESULTS: THE TWIST (Q2) ======================= -->
+<section class="slide">
+  <h2 class="eyebrow">Results &amp; Narrative · 4 of 5 · the central result</h2>
+  <h1 class="title sm">The Twist: Coordination Value ≈ 0</h1>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <figure class="fit" style="height:250px;margin-top:10px;"><img src="assets/coordination_value.png" alt="MAPPO vs IPPO across metrics" style="max-height:250px;max-width:100%;"></figure>
+  <div class="cols c2" style="margin-top:14px;align-items:center;">
+    <p class="bigstate" style="margin:0;">MAPPO ≈ IPPO on <b>every</b> performance metric.</p>
+    <div>
+      <ul class="clean" style="font-size:17px;margin-top:0;">
+        <li>Wait p=0.24 · halting p=0.53 · max halt p=0.74 · trips p=0.55 — all <span class="tag-ns">n.s.</span></li>
+        <li>Only difference: MAPPO does <b>+21 phase switches</b> (p=0.015) — <em>no</em> performance benefit.</li>
+      </ul>
+      <div class="qcheck" style="background:var(--warn);">✓ Q2 — dropping coordination does <b>not</b> degrade performance here</div>
+    </div>
+  </div>
+  <aside class="notes">
+    <h5>The twist — Q2 (~1.5 min) — SLOW DOWN HERE</h5>
+    <ul>
+      <li>This is the heart of the talk. Build it: MAPPO is the sophisticated choice and SHOULD win… it doesn't.</li>
+      <li>Against an identical IPPO (only the critic + neighbour reward removed), it's statistically indistinguishable on every metric.</li>
+      <li>The only difference — more phase switching — buys nothing. Coordination value = MAPPO − IPPO ≈ 0.</li>
+      <li>Pause. Let it land before explaining why on the next slide.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 18. RESULTS: LIVE DEMO ======================= -->
+<section class="slide">
+  <h2 class="eyebrow">Results &amp; Narrative · 5 of 5</h2>
+  <h1 class="title sm">Seeing It Run</h1>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <div class="cols c2" style="margin-top:18px;height:480px;">
+    <figure style="height:100%;display:flex;flex-direction:column;">
+      <div class="ph" style="flex:1;">
+        <img src="assets/mappo_vs_fixed.gif" alt="MAPPO controller" onerror="this.style.display='none';this.parentNode.querySelector('.phmsg').style.display='flex';">
+        <div class="phmsg" style="display:none;flex-direction:column;gap:8px;">
+          <span class="big">MAPPO — live SUMO render</span>
+          <span>drop <code>assets/mappo_vs_fixed.gif</code></span>
+        </div>
+      </div>
+      <figcaption class="figcap" style="text-align:center;">MAPPO controller</figcaption>
+    </figure>
+    <figure style="height:100%;display:flex;flex-direction:column;">
+      <div class="ph" style="flex:1;">
+        <div class="phmsg" style="display:flex;flex-direction:column;gap:8px;">
+          <span class="big">Fixed-Time — live SUMO render</span>
+          <span>(same <code>mappo_vs_fixed.gif</code> shows both side-by-side)</span>
+        </div>
+      </div>
+      <figcaption class="figcap" style="text-align:center;">Fixed-Time controller</figcaption>
+    </figure>
+  </div>
+  <aside class="notes">
+    <h5>Demo (~45s)</h5>
+    <ul>
+      <li>Play the GIF: MAPPO keeps the network flowing through rush hour; fixed-time gridlocks.</li>
+      <li>If the single GIF already shows both controllers side-by-side, use the left frame full-width and skip the right placeholder.</li>
+      <li>Make the human point: the learned controller's behaviour is visibly smarter, not just better on a number.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 19. DISCUSSION: WHY (Q3) ======================= -->
+<section class="slide">
+  <h2 class="eyebrow">Discussion</h2>
+  <h1 class="title sm">Why Coordination Value ≈ 0</h1>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <div class="cols c12" style="margin-top:20px;align-items:center;">
+    <ul class="clean">
+      <li><b>The network is small.</b> On a 2×2 grid, minimizing your <em>own</em> queue is almost the same as minimizing the <em>network's</em> — incentives are already aligned.</li>
+      <li>So coordination is <b>emergent, not engineered</b>: independent learners with shared parameters rediscover it on their own.</li>
+      <li>Not that the task is trivial — both learners <em>crush</em> the heuristics. It's the <em>coordination-specific</em> machinery that's redundant <em>here</em>.</li>
+      <li><b>Scale hypothesis.</b> As the grid grows, agents interact through longer chains → the gap should widen (CoLight; Chu 2020).</li>
+    </ul>
+    <div class="center-y">
+      <div class="spectrum">
+        <div class="track"></div>
+        <div class="ends"><span><b>2×2</b><br>value ≈ 0 (here)</span><span style="text-align:right"><b>5×5 / city</b><br>value expected &gt; 0</span></div>
+      </div>
+      <div class="qcheck" style="margin-top:20px;">→ Q3 — coordination value is a <b>function of scale</b> (hypothesis)</div>
+    </div>
+  </div>
+  <aside class="notes">
+    <h5>Why ≈ 0 — Q3 (~1.5 min)</h5>
+    <ul>
+      <li>Reframe the negative result as informative, not a failure: a small, tightly-coupled network has little coordination left to add.</li>
+      <li>Crucial nuance: the learning still does real work (beats heuristics ~2–5×); only the cooperation add-ons are redundant at this scale.</li>
+      <li>State the testable prediction: enlarge the grid and the value of coordination should appear. That's exactly the future work.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 20. CHALLENGES ======================= -->
+<section class="slide">
+  <div class="cols c12" style="height:100%;">
+    <div class="center-y">
+      <h1 class="title sm">Challenges Faced</h1>
+      <div class="bar"><i></i><i></i><i></i></div>
+      <ul class="clean" style="margin-top:22px;">
+        <li><b>Compute.</b> A single RTX 3060 Ti; each run is ~2 days. Scaling to a <b>5×5 grid (25 agents)</b> was prototyped then reverted — training to convergence exceeded the budget.</li>
+        <li><b>Faithful evaluation.</b> Matching train/eval safety clearance, restoring the observation normalizer, and forwarding neighbour metadata — each silently breaks results if missed.</li>
+        <li><b>Simulator integration.</b> SUMO + TraCI + RLlib with per-worker ports and deterministic seeding.</li>
+      </ul>
+    </div>
+    <div class="fit">
+      <div class="ph" style="width:100%;height:420px;">
+        <img src="assets/city_5x5.png" alt="5x5 city" onerror="this.style.display='none';this.parentNode.querySelector('.phmsg').style.display='flex';">
+        <div class="phmsg" style="display:none;flex-direction:column;gap:8px;">
+          <span class="big">5×5 city prototype</span>
+          <span>drop <code>assets/city_5x5.png</code></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <aside class="notes">
+    <h5>Challenges (~1 min)</h5>
+    <ul>
+      <li>Be honest about the compute wall — it's why 5×5 is future work, not a result.</li>
+      <li>The evaluation-fidelity bugs are worth a sentence: they're why the fair-comparison correction was even possible to find.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 21. FUTURE WORK ======================= -->
+<section class="slide">
+  <h1 class="title">Future Work</h1>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <div class="numlist" style="margin-top:30px;grid-template-columns:1fr 1fr;column-gap:70px;">
+    <div class="numrow"><div class="n">01</div><div class="t"><b>Scale up to 5×5</b>Grow the grid to 25 intersections and test the scale hypothesis — does coordination value rise with size?</div></div>
+    <div class="numrow"><div class="n">02</div><div class="t"><b>A genuine social dilemma</b>Move to the exploitation end of the spectrum — e.g. an apple-harvesting commons (Leibo 2017) — where defection is tempting.</div></div>
+    <div class="numrow"><div class="n">03</div><div class="t"><b>Efficiency–equity analysis</b>Use per-intersection outcomes to study fairness (Gini) — does high system performance require unequal treatment?</div></div>
+    <div class="numrow"><div class="n">04</div><div class="t"><b>Reward-structure axis</b>Contrast individual vs shared rewards where it actually bites — inert in traffic, decisive in a dilemma.</div></div>
+  </div>
+  <aside class="notes">
+    <h5>Future work (~1 min)</h5>
+    <ul>
+      <li>Present these as the natural continuation of the sharpened hypothesis, not a wish-list.</li>
+      <li>#1 directly tests the discussion's prediction; #2 completes the coordination↔dilemma spectrum.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 22. CONCLUSION ======================= -->
+<section class="slide">
+  <h1 class="title">Conclusion</h1>
+  <div class="bar"><i></i><i></i><i></i></div>
+  <ul class="clean" style="margin-top:30px;font-size:23px;">
+    <li>A MAPPO traffic controller trains stably and, under a <b>fair, matched-clearance</b> test, beats fixed-time (~5×) and max-pressure (~2×).</li>
+    <li>It is a <b>faithful</b> implementation — on par with the published recipe at ~45% the size.</li>
+    <li><b>Central result:</b> against an identical IPPO it is statistically indistinguishable — on a 2×2 network the <b>coordination value ≈ 0</b>.</li>
+    <li>This is a careful <b>negative result + a sharpened hypothesis</b>: the value of cooperation is <b>not a fixed property of an algorithm — it is a function of scale.</b></li>
+  </ul>
+  <aside class="notes">
+    <h5>Conclusion (~45s)</h5>
+    <ul>
+      <li>Land the contribution in one breath: a clean methodological fix (fair clearance) + a rigorous negative result + a testable hypothesis.</li>
+      <li>End on the one-liner: "the value of cooperation is a function of scale." Then thank and invite questions.</li>
+    </ul>
+  </aside>
+</section>
+
+<!-- ======================= 23. THANK YOU ======================= -->
+<section class="slide slide--dark">
+  <img class="d-logo" src="assets/bue-logo.png" alt="BUE">
+  <div class="d-squares"><span></span><span></span><span></span></div>
+  <div class="thanks">Thank&nbsp;You</div>
+  <div class="d-bar"><i></i><i></i><i></i></div>
+  <div class="d-people"><b>Presented by:</b> Ahmed Wael Elsisi<br>Student ID: 214647</div>
+  <div class="d-sup">Supervisor: Dr. Randa Mohamed<br>June 2026</div>
+  <aside class="notes">
+    <h5>Close + Q&amp;A</h5>
+    <ul>
+      <li>Thank the committee and supervisor. Open for questions.</li>
+      <li>Likely Q's: Why not just run 5×5? (compute). Is ≈0 just low power? (5 seeds + effect sizes, not only p-values). Is IPPO really comparable? (only 2 variables differ; same actor + param sharing).</li>
+    </ul>
+  </aside>
+</section>
+
+</div><!-- /#stage -->
+
+<div id="progress"></div>
+<div id="counter">1 / 23</div>
+<div id="hint">← → navigate · Esc overview · N notes · F fullscreen</div>
+<div id="notes"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
